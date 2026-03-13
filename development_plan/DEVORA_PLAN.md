@@ -31,7 +31,7 @@ Please refer to the OS-specific guides to install required dependencies (Node.js
 
 ---
 
-- [ ] ### TASK P-01 — Initialize Monorepo
+- [x] ### TASK P-01 — Initialize Monorepo
 
 **Files to create:**
 ```
@@ -110,7 +110,7 @@ devora/
 
 ---
 
-- [ ] ### TASK P-02 — Create Directory Scaffold
+- [x] ### TASK P-02 — Create Directory Scaffold
 
 **Run:**
 ```bash
@@ -134,7 +134,7 @@ mkdir -p docs/{architecture,api,contributing}
 
 ---
 
-- [ ] ### TASK P-03 — Create `packages/types`
+- [x] ### TASK P-03 — Create `packages/types`
 
 **Purpose:** Shared TypeScript types used across all services.
 
@@ -314,7 +314,7 @@ export interface Deployment {
 
 ---
 
-- [ ] ### TASK P-04 — Create `packages/errors`
+- [x] ### TASK P-04 — Create `packages/errors`
 
 **Files:**
 ```
@@ -409,7 +409,7 @@ export type { ErrorCode } from './codes'
 
 ---
 
-- [ ] ### TASK P-05 — Create `packages/logger`
+- [x] ### TASK P-05 — Create `packages/logger`
 
 **Files:**
 ```
@@ -442,7 +442,7 @@ export type Logger = ReturnType<typeof createLogger>
 
 ---
 
-- [ ] ### TASK P-06 — Create `packages/nats`
+- [x] ### TASK P-06 — Create `packages/nats`
 
 **Files:**
 ```
@@ -536,7 +536,7 @@ export function subscribe<T>(
 
 ---
 
-- [ ] ### TASK P-07 — Create `packages/db` — Drizzle ORM Schemas
+- [x] ### TASK P-07 — Create `packages/db` — Drizzle ORM Schemas
 
 **Files:**
 ```
@@ -907,7 +907,7 @@ export const notifications = pgTable('notifications', {
 
 ---
 
-- [ ] ### TASK P-08 — Docker Compose Dev Infrastructure
+- [x] ### TASK P-08 — Docker Compose Dev Infrastructure
 
 **File:** `infra/compose/dev.yml`
 
@@ -1015,7 +1015,7 @@ volumes:
 
 ---
 
-- [ ] ### TASK P-09 — Root `.env.example`
+- [x] ### TASK P-09 — Root `.env.example`
 
 **File:** `.env.example`
 ```bash
