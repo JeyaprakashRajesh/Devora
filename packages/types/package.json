@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc -w"
+    "build": "node init && tsc",
+    "dev": "node init && tsc -w"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

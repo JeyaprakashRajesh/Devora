@@ -2,9 +2,11 @@ import { create } from 'zustand'
 
 type User = {
   id: string
-  name: string
+  name?: string
+  displayName?: string
+  username?: string
   email: string
-  role: string
+  role?: string
 }
 
 type Org = {
@@ -15,8 +17,8 @@ type Org = {
 type AuthPayload = {
   token: string
   user: User
-  org: Org
-  permissions: string[]
+  org: Org | null
+  permissions?: string[]
 }
 
 type AuthState = {
@@ -71,8 +73,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const nextState = {
         token: payload.token,
         user: payload.user,
-        org: payload.org,
-        permissions: payload.permissions,
+        org: payload.org ?? null,
+        permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
       }
       persistAuth(nextState)
       set(nextState)

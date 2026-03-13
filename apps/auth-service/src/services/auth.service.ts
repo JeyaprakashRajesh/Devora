@@ -102,7 +102,16 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     })
 
-    return { user: this.safeUser(user), token, sessionId }
+    const profile = await this.getMe(user.id, this.db)
+
+    return {
+      user: profile.user,
+      org: profile.org,
+      roles: profile.roles,
+      permissions: profile.permissions,
+      token,
+      sessionId,
+    }
   }
 
   async logout(sessionId: string, redis: Redis) {

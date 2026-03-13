@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "node init && tsc",
     "db:generate": "drizzle-kit generate:pg",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "drizzle-kit push:pg"
   },
   "dependencies": {
     "drizzle-orm": "^0.30.0",
