@@ -14,11 +14,17 @@ export type RbacLike = Pick<RbacService, 'can'>
 export async function authenticate(request: FastifyRequest, _reply: FastifyReply) {
   try {
     await request.jwtVerify()
+    const payload = request.user as JwtPayload
+
+    const sessionUserId = await request.server.redis.get(`session:${payload.sessionId}`)
+    if (!sessionUserId || sessionUserId !== payload.sub) {
+      throw new UnauthorizedError('Session expired')
+    }
 
     // Prevent cross-organization access when route explicitly carries an orgId.
     const params = request.params as { orgId?: string } | undefined
     if (params?.orgId) {
-      const { org } = request.user as JwtPayload
+      const { org } = payload
       if (org !== params.orgId) {
         throw new ForbiddenError('Token organization does not match request organization')
       }

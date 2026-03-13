@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { authenticate } from '../middleware/authenticate.js'
+import { authenticate, requirePermission } from '../middleware/authenticate.js'
 import { RbacService } from '../services/rbac.service.js'
 import type { JwtPayload } from '../middleware/authenticate.js'
 
@@ -17,7 +17,7 @@ export async function rolesRoutes(app: FastifyInstance) {
 
   // POST /orgs/:orgId/roles — create custom role
   app.post('/:orgId/roles', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, requirePermission('org:manage')],
   }, async (request, reply) => {
     const { orgId } = request.params as { orgId: string }
     const { name, scope, permissions } = request.body as { name: string; scope: string; permissions: string[] }
@@ -27,7 +27,7 @@ export async function rolesRoutes(app: FastifyInstance) {
 
   // PUT /orgs/:orgId/roles/:roleId — update custom role
   app.put('/:orgId/roles/:roleId', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, requirePermission('org:manage')],
   }, async (request, reply) => {
     const { orgId, roleId } = request.params as { orgId: string; roleId: string }
     const { name, permissions } = request.body as { name?: string; permissions?: string[] }
@@ -37,7 +37,7 @@ export async function rolesRoutes(app: FastifyInstance) {
 
   // DELETE /orgs/:orgId/roles/:roleId — delete custom role
   app.delete('/:orgId/roles/:roleId', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, requirePermission('org:manage')],
   }, async (request, reply) => {
     const { orgId, roleId } = request.params as { orgId: string; roleId: string }
     await rbacService.deleteRole(orgId, roleId)
@@ -46,7 +46,7 @@ export async function rolesRoutes(app: FastifyInstance) {
 
   // POST /orgs/:orgId/users/:userId/roles — assign role
   app.post('/:orgId/users/:userId/roles', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, requirePermission('role:assign')],
   }, async (request, reply) => {
     const { userId } = request.params as { orgId: string; userId: string }
     const { roleId, resourceType, resourceId, expiresAt } = request.body as any
@@ -64,7 +64,7 @@ export async function rolesRoutes(app: FastifyInstance) {
 
   // DELETE /orgs/:orgId/users/:userId/roles/:roleId — revoke role
   app.delete('/:orgId/users/:userId/roles/:roleId', {
-    preHandler: [authenticate],
+    preHandler: [authenticate, requirePermission('role:assign')],
   }, async (request, reply) => {
     const { userId, roleId } = request.params as { orgId: string; userId: string; roleId: string }
     const { resourceId } = (request.query ?? {}) as { resourceId?: string }

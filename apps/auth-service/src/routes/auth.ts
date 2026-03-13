@@ -5,10 +5,11 @@ import { authenticate } from '../middleware/authenticate.js'
 
 const registerSchema = z.object({
   orgName:  z.string().min(2),
-  orgSlug:  z.string().min(2).regex(/^[a-z0-9-]+$/),
+  orgSlug:  z.string().min(2).regex(/^[a-z0-9-]+$/).optional(),
   email:    z.string().email(),
   password: z.string().min(8),
-  username: z.string().min(2),
+  username: z.string().min(2).optional(),
+  name:     z.string().min(2).optional(),
 })
 
 const loginSchema = z.object({
@@ -32,11 +33,45 @@ const resetPasswordSchema = z.object({
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService(app.db, app.redis)
 
+  const slugify = (value: string): string =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+
   // POST /auth/register
   app.post('/register', async (request, reply) => {
-    const body = registerSchema.parse(request.body)
-    const result = await authService.register(body, app.nc)
-    return reply.code(201).send(result)
+    const parsed = registerSchema.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({
+        code: 'GEN_001',
+        message: 'Validation failed',
+        details: parsed.error.issues,
+      })
+    }
+
+    const body = parsed.data
+    const orgSlug = body.orgSlug ?? slugify(body.orgName)
+    const username = body.username ?? body.name ?? body.email.split('@')[0]
+
+    const result = await authService.register({
+      orgName: body.orgName,
+      orgSlug,
+      email: body.email,
+      password: body.password,
+      username,
+    }, app.nc)
+
+    const login = await authService.login({ email: body.email, password: body.password }, app)
+
+    return reply.code(201).send({
+      token: login.token,
+      sessionId: login.sessionId,
+      user: login.user,
+      org: result.org,
+    })
   })
 
   // POST /auth/login

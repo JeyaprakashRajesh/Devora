@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>portal</title>
+    <title>Devora Portal</title>
+    <script>
+      (() => {
+        const key = 'devora-theme'
+        const stored = window.localStorage.getItem(key)
+        const theme = stored === 'light' || stored === 'dark' ? stored : 'dark'
+        document.documentElement.setAttribute('data-theme', theme)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
