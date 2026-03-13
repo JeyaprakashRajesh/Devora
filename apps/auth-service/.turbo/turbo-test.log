@@ -1,0 +1,15 @@
+
+> @devora/auth-service@0.1.0 test
+> vitest run
+
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/rjeya/github/Devora/apps/auth-service[39m
+
+ [32m✓[39m src/__tests__/rbac.test.ts [2m ([22m[2m23 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m src/__tests__/auth.test.ts [2m ([22m[2m17 tests[22m[2m)[22m[33m 1979[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m   Start at [22m 08:12:32
+[2m   Duration [22m 2.42s[2m (transform 93ms, setup 0ms, collect 340ms, tests 1.99s, environment 0ms, prepare 140ms)[22m
+
