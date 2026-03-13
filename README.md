@@ -307,11 +307,18 @@ cd devora
 # Install Node.js dependencies (all services via workspaces)
 npm install
 
+# Windows one-command fresh restart (stops old processes, recreates infra and kube context, starts services)
+npm run dev:fresh
+
+# Or run in two steps
+npm run dev:reset
+npm run dev:up
+
 # Start infrastructure: postgres, redis, clickhouse, nats, minio
 docker compose -f infra/compose/dev.yml up -d
 
 # Run database migrations
-npm run db:migrate --workspace=packages/db
+npm run db:migrate
 
 # Start all services in watch mode (Turborepo)
 npm run dev

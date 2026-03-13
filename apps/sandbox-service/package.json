@@ -1,5 +1,36 @@
 {
   "name": "@devora/sandbox-service",
   "version": "0.1.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@devora/db": "*",
+    "@devora/errors": "*",
+    "@devora/logger": "*",
+    "@devora/nats": "*",
+    "@devora/types": "*",
+    "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/websocket": "^8.3.1",
+    "@kubernetes/client-node": "^0.21.0",
+    "dotenv": "^16.4.0",
+    "fastify": "^4.26.0",
+    "fastify-plugin": "^4.5.1",
+    "http-proxy": "^1.18.1",
+    "nats": "^2.18.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/http-proxy": "^1.17.17",
+    "@vitest/coverage-v8": "^1.4.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
 }
