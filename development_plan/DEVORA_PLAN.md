@@ -1352,7 +1352,7 @@ export class AuthService {
 
 ---
 
-- [ ] ### TASK 1-03 — RBAC Engine
+- [X] ### TASK 1-03 — RBAC Engine
 
 **`src/services/rbac.service.ts` — this is the core permission engine:**
 
@@ -1485,7 +1485,7 @@ export const SYSTEM_ROLES = {
 
 ---
 
-- [ ] ### TASK 1-04 — Auth Middleware (used by all services)
+- [X] ### TASK 1-04 — Auth Middleware (used by all services)
 
 **File:** `apps/auth-service/src/middleware/authenticate.ts`
 

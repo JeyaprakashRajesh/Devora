@@ -7,9 +7,15 @@ import { RbacService, SYSTEM_ROLES, AssignRoleDto } from '../services/rbac.servi
 
 /**
  * Build a mock Db that returns `grants` from the chained role query.
- * grants = [{ permissions: string[], expiresAt?: Date | null }]
+ * grants = [{ permissions: string[], expiresAt?: Date | null, roleOrgId?: string | null }]
  */
-function makeDbWithGrants(grants: Array<{ permissions: string[]; expiresAt?: Date | null }>) {
+function makeDbWithGrants(grants: Array<{
+  permissions: string[]
+  expiresAt?: Date | null
+  resourceType?: string | null
+  resourceId?: string | null
+  roleOrgId?: string | null
+}>) {
   return {
     select:   vi.fn().mockReturnThis(),
     from:     vi.fn().mockReturnThis(),
@@ -69,7 +75,7 @@ describe('RbacService.getPermissions()', () => {
       { permissions: ['deploy:staging'], expiresAt: null },
     ])
     const svc = new RbacService(db)
-    const perms = await svc.getPermissions('u1')
+    const perms = await svc.getPermissions('u1', 'o1')
     expect(perms).toContain('project:read')
     expect(perms).toContain('code:write')
     expect(perms).toContain('deploy:staging')
@@ -82,14 +88,14 @@ describe('RbacService.getPermissions()', () => {
       { permissions: ['deploy:production'], expiresAt: pastDate },
     ])
     const svc = new RbacService(db)
-    const perms = await svc.getPermissions('u1')
+    const perms = await svc.getPermissions('u1', 'o1')
     expect(perms).toContain('project:read')
     expect(perms).not.toContain('deploy:production')
   })
 
   it('returns empty array when user has no roles', async () => {
     const db = makeDbWithGrants([])
-    const perms = await new RbacService(db).getPermissions('u-nobody')
+    const perms = await new RbacService(db).getPermissions('u-nobody', 'o1')
     expect(perms).toEqual([])
   })
 
@@ -98,9 +104,21 @@ describe('RbacService.getPermissions()', () => {
       { permissions: ['project:read'], expiresAt: null },
       { permissions: ['project:read', 'code:write'], expiresAt: null },
     ])
-    const perms = await new RbacService(db).getPermissions('u1')
+    const perms = await new RbacService(db).getPermissions('u1', 'o1')
     const count = perms.filter(p => p === 'project:read').length
     expect(count).toBe(1) // no duplicates
+  })
+
+  it('filters out permissions from a different org role', async () => {
+    const db = makeDbWithGrants([
+      { permissions: ['project:read'], roleOrgId: 'o1' },
+      { permissions: ['deploy:production'], roleOrgId: 'o2' },
+      { permissions: ['org:read'], roleOrgId: null },
+    ])
+    const perms = await new RbacService(db).getPermissions('u1', 'o1')
+    expect(perms).toContain('project:read')
+    expect(perms).toContain('org:read')
+    expect(perms).not.toContain('deploy:production')
   })
 })
 
@@ -161,6 +179,25 @@ describe('RbacService.can()', () => {
       { permissions: ['deploy:production'], expiresAt: futureDate },
     ])
     expect(await new RbacService(db).can('u1', 'deploy:production')).toBe(true)
+  })
+
+  it('scoped grant only applies to matching resource id', async () => {
+    const db = makeDbWithGrants([
+      {
+        permissions: ['deploy:production'],
+        resourceType: 'project',
+        resourceId: 'p-1',
+      },
+    ])
+    expect(await new RbacService(db).can('u1', 'deploy:production', 'project', 'p-1')).toBe(true)
+    expect(await new RbacService(db).can('u1', 'deploy:production', 'project', 'p-2')).toBe(false)
+  })
+
+  it('global grant can satisfy scoped checks', async () => {
+    const db = makeDbWithGrants([
+      { permissions: ['project:read'], resourceType: null, resourceId: null },
+    ])
+    expect(await new RbacService(db).can('u1', 'project:read', 'project', 'p-9')).toBe(true)
   })
 })
 
