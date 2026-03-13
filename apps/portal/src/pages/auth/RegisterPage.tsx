@@ -76,7 +76,7 @@ export function RegisterPage() {
     setLoading(true)
 
     try {
-      await api.post('/auth/register', {
+      await api.post('/api/auth/register', {
         orgName: organizationName,
         orgSlug: toSlug(organizationName),
         username: name,

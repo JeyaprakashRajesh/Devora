@@ -10,6 +10,7 @@ import { useAuthStore } from './store/auth.store'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
+import { IdePage } from './pages/ide/IdePage'
 
 const rootRoute = createRootRoute({
   component: App,
@@ -57,7 +58,13 @@ const dashboardRoute = createRoute({
 const ideRoute = createRoute({
   getParentRoute: () => protectedRoute,
   path: '/ide',
-  component: DashboardPage,
+  component: IdePage,
+})
+
+const ideWorkspaceRoute = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: '/ide/$workspaceId',
+  component: IdePage,
 })
 
 const sandboxesRoute = createRoute({
@@ -126,6 +133,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   protectedRoute.addChildren([
     dashboardRoute,
+    ideWorkspaceRoute,
     ideRoute,
     sandboxesRoute,
     projectsRoute,
