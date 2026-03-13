@@ -2,26 +2,35 @@
   "name": "@devora/gateway",
   "version": "0.1.0",
   "private": true,
-  "description": "",
-  "main": "index.js",
+  "description": "Devora API Gateway",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@fastify/cors": "^11.2.0",
-    "@fastify/http-proxy": "^11.4.1",
-    "@fastify/jwt": "^10.0.0",
-    "dotenv": "^17.3.1",
-    "fastify": "^5.8.2",
-    "pino": "^10.3.1",
-    "z": "^1.0.9"
+    "@devora/errors": "*",
+    "@devora/logger": "*",
+    "@devora/types": "*",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/http-proxy": "^9.4.0",
+    "@fastify/jwt": "^8.0.0",
+    "dotenv": "^16.4.0",
+    "fastify": "^4.26.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^6.3.4",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
   }
 }

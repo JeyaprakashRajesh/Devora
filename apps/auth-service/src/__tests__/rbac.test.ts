@@ -266,3 +266,76 @@ describe('RbacService.seedSystemRoles()', () => {
     expect(superAdminInsert.isSystem).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// RbacService — Role Management
+// ---------------------------------------------------------------------------
+
+describe('RbacService — Role Management', () => {
+  it('listRoles returns roles for an org or system roles', async () => {
+    const rolesList = [{ id: 'r1', orgId: 'o1', name: 'Role 1' }, { id: 'r2', orgId: null, name: 'System Role' }]
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockResolvedValue(rolesList),
+    }
+    const result = await new RbacService(db).listRoles('o1')
+    expect(result).toEqual(rolesList)
+    expect(db.where).toHaveBeenCalled()
+  })
+
+  it('createRole inserts a new role', async () => {
+    const db: any = {
+      insert: vi.fn().mockReturnThis(),
+      values: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([{ id: 'nr1' }]),
+    }
+    const result = await new RbacService(db).createRole('o1', 'New Role', 'org', ['p1'])
+    expect(result.id).toBe('nr1')
+    expect(db.insert).toHaveBeenCalled()
+  })
+
+  it('updateRole updates a custom role', async () => {
+    const db: any = {
+      update: vi.fn().mockReturnThis(),
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([{ id: 'r1', name: 'Updated' }]),
+    }
+    const result = await new RbacService(db).updateRole('o1', 'r1', { name: 'Updated' })
+    expect(result.name).toBe('Updated')
+    expect(db.update).toHaveBeenCalled()
+  })
+
+  it('updateRole fails for system roles', async () => {
+    const db: any = {
+      update: vi.fn().mockReturnThis(),
+      set: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([]),
+    }
+    await expect(new RbacService(db).updateRole('o1', 'system-role', { name: 'FAIL' }))
+      .rejects.toThrow('Role not found or is a system role')
+  })
+
+  it('deleteRole deletes a custom role', async () => {
+    const db: any = {
+      delete: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([{ id: 'r1' }]),
+    }
+    const result = await new RbacService(db).deleteRole('o1', 'r1')
+    expect(result.id).toBe('r1')
+    expect(db.delete).toHaveBeenCalled()
+  })
+
+  it('deleteRole fails for system roles', async () => {
+    const db: any = {
+      delete: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockResolvedValue([]),
+    }
+    await expect(new RbacService(db).deleteRole('o1', 'system-role'))
+      .rejects.toThrow('Role not found or is a system role')
+  })
+})
