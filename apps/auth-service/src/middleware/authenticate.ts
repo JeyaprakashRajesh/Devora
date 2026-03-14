@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { ForbiddenError, UnauthorizedError } from '@devora/errors'
-import { RbacService } from '../services/rbac.service.js'
+import { UnauthorizedError } from '@devora/errors'
 
 export interface JwtPayload {
   sub:       string   // userId
@@ -9,54 +8,10 @@ export interface JwtPayload {
   sessionId: string
 }
 
-export type RbacLike = Pick<RbacService, 'can'>
-
 export async function authenticate(request: FastifyRequest, _reply: FastifyReply) {
   try {
     await request.jwtVerify()
-
-    // Prevent cross-organization access when route explicitly carries an orgId.
-    const params = request.params as { orgId?: string } | undefined
-    if (params?.orgId) {
-      const { org } = request.user as JwtPayload
-      if (org !== params.orgId) {
-        throw new ForbiddenError('Token organization does not match request organization')
-      }
-    }
-  } catch (error) {
-    if (error instanceof ForbiddenError) {
-      throw error
-    }
+  } catch {
     throw new UnauthorizedError()
-  }
-}
-
-/**
- * Factory form makes this middleware easy to share across services and test.
- */
-export function createRequirePermission(rbac: RbacLike) {
-  return function requirePermission(permission: string, resourceIdParam?: string) {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-      await authenticate(request, reply)
-
-      const { sub: userId } = request.user as JwtPayload
-      const resourceId = resourceIdParam
-        ? (request.params as Record<string, string> | undefined)?.[resourceIdParam]
-        : undefined
-      const resourceType = permission.split(':')[0]
-
-      const allowed = await rbac.can(userId, permission, resourceType, resourceId)
-      if (!allowed) {
-        throw new ForbiddenError()
-      }
-    }
-  }
-}
-
-export function requirePermission(permission: string, resourceIdParam?: string) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    const rbac = new RbacService(request.server.db)
-    const guard = createRequirePermission(rbac)
-    await guard(permission, resourceIdParam)(request, reply)
   }
 }

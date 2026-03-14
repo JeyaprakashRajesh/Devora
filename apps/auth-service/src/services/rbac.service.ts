@@ -1,15 +1,7 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { Db, schema } from '@devora/db'
 
 const { userRoles, roles } = schema
-
-interface PermissionGrant {
-  permissions: unknown
-  expiresAt: Date | string | null
-  resourceType: string | null
-  resourceId: string | null
-  roleOrgId: string | null
-}
 
 export const SYSTEM_ROLES = {
   SUPER_ADMIN: {
@@ -91,55 +83,38 @@ export class RbacService {
   async can(
     userId: string,
     permission: string,
-    resourceType?: string,
-    resourceId?: string
+    _resourceType?: string,
+    _resourceId?: string
   ): Promise<boolean> {
-    const grants = await this.loadPermissionGrants(userId)
-
-    for (const grant of grants) {
-      if (this.isExpired(grant.expiresAt)) continue
-
-      const grantPermissions = this.asPermissions(grant.permissions)
-      if (!grantPermissions.includes('*') && !grantPermissions.includes(permission)) {
-        continue
-      }
-
-      if (!resourceType) {
-        return true
-      }
-
-      // Global grants (no resource scope) apply to any resource.
-      if (grant.resourceType && grant.resourceType !== resourceType) {
-        continue
-      }
-
-      if (resourceId && grant.resourceId && grant.resourceId !== resourceId) {
-        continue
-      }
-
-      return true
-    }
-
-    return false
+    const permissions = await this.getPermissions(userId)
+    return permissions.includes('*') || permissions.includes(permission)
   }
 
   /**
    * Get all permissions for a user, flattened from all their roles.
    * Respects expiresAt — expired grants are ignored.
    */
-  async getPermissions(userId: string, orgId: string): Promise<string[]> {
-    const grants = await this.loadPermissionGrants(userId)
+  async getPermissions(userId: string): Promise<string[]> {
+    const now = new Date()
+    const grants = await this.db
+      .select({
+        permissions: roles.permissions,
+        expiresAt:   userRoles.expiresAt,
+      })
+      .from(userRoles)
+      .leftJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, userId))
 
     const permissions = new Set<string>()
     for (const grant of grants) {
-      if (this.isExpired(grant.expiresAt)) continue
-      if (grant.roleOrgId && grant.roleOrgId !== orgId) continue
-
-      for (const permission of this.asPermissions(grant.permissions)) {
-        permissions.add(permission)
+      // Skip expired grants
+      if (grant.expiresAt && new Date(grant.expiresAt) < now) continue
+      if (grant.permissions) {
+        for (const p of grant.permissions as string[]) {
+          permissions.add(p)
+        }
       }
     }
-
     return Array.from(permissions)
   }
 
@@ -155,14 +130,13 @@ export class RbacService {
   }
 
   async revokeRole(userId: string, roleId: string, resourceId?: string): Promise<void> {
-    if (resourceId) {
-      await this.db
-        .delete(userRoles)
-        .where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId), eq(userRoles.resourceId, resourceId)))
-      return
-    }
-
-    await this.db.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
+    await this.db.delete(userRoles).where(
+      and(
+        eq(userRoles.userId, userId),
+        eq(userRoles.roleId, roleId),
+        resourceId ? eq(userRoles.resourceId, resourceId) : isNull(userRoles.resourceId)
+      )
+    )
   }
 
   /** Seed all system roles for a given org (idempotent) */
@@ -179,29 +153,5 @@ export class RbacService {
         })
         .onConflictDoNothing()
     }
-  }
-
-  private async loadPermissionGrants(userId: string): Promise<PermissionGrant[]> {
-    return this.db
-      .select({
-        permissions:  roles.permissions,
-        expiresAt:    userRoles.expiresAt,
-        resourceType: userRoles.resourceType,
-        resourceId:   userRoles.resourceId,
-        roleOrgId:    roles.orgId,
-      })
-      .from(userRoles)
-      .leftJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(eq(userRoles.userId, userId)) as Promise<PermissionGrant[]>
-  }
-
-  private isExpired(expiresAt: Date | string | null): boolean {
-    if (!expiresAt) return false
-    return new Date(expiresAt) < new Date()
-  }
-
-  private asPermissions(rawPermissions: unknown): string[] {
-    if (!Array.isArray(rawPermissions)) return []
-    return rawPermissions.filter((permission): permission is string => typeof permission === 'string')
   }
 }
