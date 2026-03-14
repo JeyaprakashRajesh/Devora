@@ -1,5 +1,4 @@
 # DEVORA
-
 # `DEVORA_PLAN.md`
 
 > **Purpose:** This document is the complete, ordered implementation plan for the Devora platform. It is written for AI coding agents and developers. Every task includes exact file paths, code structure, dependencies, and acceptance criteria. Follow tasks in order within each sprint. Do not skip prerequisites.
@@ -24,7 +23,6 @@ Package mgr:    npm workspaces + Turborepo
 
 **Development Dependencies Setup:**
 Please refer to the OS-specific guides to install required dependencies (Node.js 20, Rust 1.78+, Docker, etc.) before proceeding:
-
 - [Linux Setup Guide](./linux_dependencies.md)
 - [macOS Setup Guide](./mac_dependencies.md)
 - [Windows Setup Guide](./windows_dependencies.md)
@@ -36,7 +34,6 @@ Please refer to the OS-specific guides to install required dependencies (Node.js
 - [x] ### TASK P-01 — Initialize Monorepo
 
 **Files to create:**
-
 ```
 devora/
 ├── package.json
@@ -50,12 +47,15 @@ devora/
 ```
 
 **`package.json` structure:**
-
 ```json
 {
   "name": "devora",
   "private": true,
-  "workspaces": ["apps/*", "packages/*", "core/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "core/*"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -74,7 +74,6 @@ devora/
 ```
 
 **`turbo.json` structure:**
-
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
@@ -90,7 +89,6 @@ devora/
 ```
 
 **`tsconfig.base.json`:**
-
 ```json
 {
   "compilerOptions": {
@@ -115,7 +113,6 @@ devora/
 - [x] ### TASK P-02 — Create Directory Scaffold
 
 **Run:**
-
 ```bash
 mkdir -p apps/{portal,gateway,auth-service,project-service,chat-service,monitor-service,sandbox-service,notification-service}
 mkdir -p core/{deploy-engine,installer}
@@ -125,7 +122,6 @@ mkdir -p docs/{architecture,api,contributing}
 ```
 
 **Each `apps/*` and `packages/*` needs a minimal `package.json`:**
-
 ```json
 {
   "name": "@devora/<name>",
@@ -143,7 +139,6 @@ mkdir -p docs/{architecture,api,contributing}
 **Purpose:** Shared TypeScript types used across all services.
 
 **Files:**
-
 ```
 packages/types/
 ├── package.json
@@ -159,7 +154,6 @@ packages/types/
 ```
 
 **`src/auth.ts` structure:**
-
 ```typescript
 export type OrgPlan = 'starter' | 'pro' | 'enterprise'
 export type UserStatus = 'active' | 'suspended' | 'invited'
@@ -202,27 +196,21 @@ export interface Session {
 }
 
 export interface JwtPayload {
-  sub: string // user id
-  org: string // org id
-  roles: string[] // role ids
+  sub: string        // user id
+  org: string        // org id
+  roles: string[]    // role ids
   iat: number
   exp: number
 }
 ```
 
 **`src/project.ts` structure:**
-
 ```typescript
 export type IssueStatus = 'open' | 'in_progress' | 'closed'
 export type IssuePriority = 'low' | 'medium' | 'high' | 'critical'
 export type IssueType = 'task' | 'bug' | 'feature' | 'epic'
 export type PRStatus = 'open' | 'merged' | 'closed' | 'draft'
-export type PipelineStatus =
-  | 'queued'
-  | 'running'
-  | 'passed'
-  | 'failed'
-  | 'cancelled'
+export type PipelineStatus = 'queued' | 'running' | 'passed' | 'failed' | 'cancelled'
 
 export interface Project {
   id: string
@@ -263,7 +251,6 @@ export interface PipelineRun {
 ```
 
 **`src/chat.ts` structure:**
-
 ```typescript
 export type ChannelType = 'public' | 'private' | 'dm' | 'thread'
 export type MessageContentType = 'markdown' | 'system' | 'card'
@@ -294,23 +281,10 @@ export interface Message {
 ```
 
 **`src/deploy.ts` structure:**
-
 ```typescript
-export type DeployTargetType =
-  | 'self_hosted'
-  | 'aws'
-  | 'gcp'
-  | 'azure'
-  | 'hetzner'
-  | 'digitalocean'
+export type DeployTargetType = 'self_hosted' | 'aws' | 'gcp' | 'azure' | 'hetzner' | 'digitalocean'
 export type DeployEnvironment = 'dev' | 'staging' | 'production'
-export type DeployStatus =
-  | 'pending'
-  | 'building'
-  | 'deploying'
-  | 'live'
-  | 'failed'
-  | 'rolled_back'
+export type DeployStatus = 'pending' | 'building' | 'deploying' | 'live' | 'failed' | 'rolled_back'
 export type DeployStrategy = 'rolling' | 'blue_green' | 'canary'
 
 export interface DeployTarget {
@@ -343,7 +317,6 @@ export interface Deployment {
 - [x] ### TASK P-04 — Create `packages/errors`
 
 **Files:**
-
 ```
 packages/errors/
 ├── package.json
@@ -354,39 +327,37 @@ packages/errors/
 ```
 
 **`src/codes.ts`:**
-
 ```typescript
 export const ErrorCodes = {
   // Auth
-  UNAUTHORIZED: 'AUTH_001',
-  FORBIDDEN: 'AUTH_002',
-  INVALID_CREDENTIALS: 'AUTH_003',
-  SESSION_EXPIRED: 'AUTH_004',
-  USER_NOT_FOUND: 'AUTH_005',
-  ORG_NOT_FOUND: 'AUTH_006',
+  UNAUTHORIZED:           'AUTH_001',
+  FORBIDDEN:              'AUTH_002',
+  INVALID_CREDENTIALS:    'AUTH_003',
+  SESSION_EXPIRED:        'AUTH_004',
+  USER_NOT_FOUND:         'AUTH_005',
+  ORG_NOT_FOUND:          'AUTH_006',
   // Project
-  PROJECT_NOT_FOUND: 'PROJ_001',
-  ISSUE_NOT_FOUND: 'PROJ_002',
-  PR_NOT_FOUND: 'PROJ_003',
+  PROJECT_NOT_FOUND:      'PROJ_001',
+  ISSUE_NOT_FOUND:        'PROJ_002',
+  PR_NOT_FOUND:           'PROJ_003',
   // Deploy
-  DEPLOY_TARGET_NOT_FOUND: 'DEPL_001',
-  DEPLOY_FORBIDDEN: 'DEPL_002',
-  DEPLOY_SPEC_INVALID: 'DEPL_003',
+  DEPLOY_TARGET_NOT_FOUND:'DEPL_001',
+  DEPLOY_FORBIDDEN:       'DEPL_002',
+  DEPLOY_SPEC_INVALID:    'DEPL_003',
   // Chat
-  CHANNEL_NOT_FOUND: 'CHAT_001',
-  MESSAGE_NOT_FOUND: 'CHAT_002',
+  CHANNEL_NOT_FOUND:      'CHAT_001',
+  MESSAGE_NOT_FOUND:      'CHAT_002',
   // Generic
-  VALIDATION_ERROR: 'GEN_001',
-  INTERNAL_ERROR: 'GEN_002',
-  NOT_FOUND: 'GEN_003',
-  CONFLICT: 'GEN_004',
+  VALIDATION_ERROR:       'GEN_001',
+  INTERNAL_ERROR:         'GEN_002',
+  NOT_FOUND:              'GEN_003',
+  CONFLICT:               'GEN_004',
 } as const
 
-export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]
+export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes]
 ```
 
 **`src/index.ts`:**
-
 ```typescript
 import { ErrorCode } from './codes'
 
@@ -441,7 +412,6 @@ export type { ErrorCode } from './codes'
 - [x] ### TASK P-05 — Create `packages/logger`
 
 **Files:**
-
 ```
 packages/logger/
 ├── package.json
@@ -451,7 +421,6 @@ packages/logger/
 ```
 
 **`src/index.ts`:**
-
 ```typescript
 import pino from 'pino'
 
@@ -476,7 +445,6 @@ export type Logger = ReturnType<typeof createLogger>
 - [x] ### TASK P-06 — Create `packages/nats`
 
 **Files:**
-
 ```
 packages/nats/
 ├── package.json
@@ -488,61 +456,56 @@ packages/nats/
 ```
 
 **`src/subjects.ts` — complete NATS subject registry:**
-
 ```typescript
 export const Subjects = {
   // Auth
-  AUTH_USER_CREATED: 'auth.user.created',
-  AUTH_USER_UPDATED: 'auth.user.updated',
-  AUTH_ROLE_ASSIGNED: 'auth.role.assigned',
-  AUTH_USER_INVITED: 'auth.user.invited',
+  AUTH_USER_CREATED:          'auth.user.created',
+  AUTH_USER_UPDATED:          'auth.user.updated',
+  AUTH_ROLE_ASSIGNED:         'auth.role.assigned',
+  AUTH_USER_INVITED:          'auth.user.invited',
 
   // Project
-  PROJECT_CREATED: 'project.created',
-  PROJECT_ISSUE_CREATED: 'project.issue.created',
-  PROJECT_ISSUE_UPDATED: 'project.issue.updated',
-  PROJECT_ISSUE_CLOSED: 'project.issue.closed',
-  PROJECT_PR_OPENED: 'project.pr.opened',
-  PROJECT_PR_MERGED: 'project.pr.merged',
-  PROJECT_PR_CLOSED: 'project.pr.closed',
-  PROJECT_PIPELINE_STARTED: 'project.pipeline.started',
-  PROJECT_PIPELINE_PASSED: 'project.pipeline.passed',
-  PROJECT_PIPELINE_FAILED: 'project.pipeline.failed',
+  PROJECT_CREATED:            'project.created',
+  PROJECT_ISSUE_CREATED:      'project.issue.created',
+  PROJECT_ISSUE_UPDATED:      'project.issue.updated',
+  PROJECT_ISSUE_CLOSED:       'project.issue.closed',
+  PROJECT_PR_OPENED:          'project.pr.opened',
+  PROJECT_PR_MERGED:          'project.pr.merged',
+  PROJECT_PR_CLOSED:          'project.pr.closed',
+  PROJECT_PIPELINE_STARTED:   'project.pipeline.started',
+  PROJECT_PIPELINE_PASSED:    'project.pipeline.passed',
+  PROJECT_PIPELINE_FAILED:    'project.pipeline.failed',
 
   // Deploy
-  DEPLOY_STARTED: 'deploy.started',
-  DEPLOY_STEP_COMPLETED: 'deploy.step.completed',
-  DEPLOY_SUCCEEDED: 'deploy.succeeded',
-  DEPLOY_FAILED: 'deploy.failed',
-  DEPLOY_APPROVAL_REQUIRED: 'deploy.approval.required',
-  DEPLOY_ROLLED_BACK: 'deploy.rolled_back',
+  DEPLOY_STARTED:             'deploy.started',
+  DEPLOY_STEP_COMPLETED:      'deploy.step.completed',
+  DEPLOY_SUCCEEDED:           'deploy.succeeded',
+  DEPLOY_FAILED:              'deploy.failed',
+  DEPLOY_APPROVAL_REQUIRED:   'deploy.approval.required',
+  DEPLOY_ROLLED_BACK:         'deploy.rolled_back',
 
   // Sandbox
-  SANDBOX_CREATED: 'sandbox.created',
-  SANDBOX_STARTED: 'sandbox.started',
-  SANDBOX_STOPPED: 'sandbox.stopped',
-  SANDBOX_RESOURCE_SPIKE: 'sandbox.resource.spike',
+  SANDBOX_CREATED:            'sandbox.created',
+  SANDBOX_STARTED:            'sandbox.started',
+  SANDBOX_STOPPED:            'sandbox.stopped',
+  SANDBOX_RESOURCE_SPIKE:     'sandbox.resource.spike',
 
   // Chat
-  CHAT_MESSAGE_CREATED: 'chat.message.created',
-  CHAT_MENTION_DETECTED: 'chat.mention.detected',
+  CHAT_MESSAGE_CREATED:       'chat.message.created',
+  CHAT_MENTION_DETECTED:      'chat.mention.detected',
 } as const
 
-export type Subject = (typeof Subjects)[keyof typeof Subjects]
+export type Subject = typeof Subjects[keyof typeof Subjects]
 ```
 
 **`src/client.ts`:**
-
 ```typescript
 import { connect, NatsConnection, JSONCodec, StringCodec } from 'nats'
 import { Logger } from '@devora/logger'
 
 const jc = JSONCodec()
 
-export async function createNatsClient(
-  url: string,
-  logger: Logger
-): Promise<NatsConnection> {
+export async function createNatsClient(url: string, logger: Logger): Promise<NatsConnection> {
   const nc = await connect({ servers: url })
   logger.info({ url }, 'Connected to NATS')
   return nc
@@ -576,7 +539,6 @@ export function subscribe<T>(
 - [x] ### TASK P-07 — Create `packages/db` — Drizzle ORM Schemas
 
 **Files:**
-
 ```
 packages/db/
 ├── package.json
@@ -597,7 +559,6 @@ packages/db/
 ```
 
 **`src/client.ts`:**
-
 ```typescript
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
@@ -611,411 +572,334 @@ export type Db = ReturnType<typeof createDb>
 ```
 
 **`src/schema/auth.ts`:**
-
 ```typescript
-import {
-  pgTable,
-  uuid,
-  text,
-  boolean,
-  timestamp,
-  jsonb,
-  inet,
-} from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, boolean, timestamp, jsonb, inet } from 'drizzle-orm/pg-core'
 
 export const organizations = pgTable('organizations', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  slug: text('slug').unique().notNull(),
-  plan: text('plan').default('starter').notNull(),
-  settings: jsonb('settings').default({}).notNull(),
+  id:        uuid('id').primaryKey().defaultRandom(),
+  name:      text('name').notNull(),
+  slug:      text('slug').unique().notNull(),
+  plan:      text('plan').default('starter').notNull(),
+  settings:  jsonb('settings').default({}).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id')
-    .references(() => organizations.id, { onDelete: 'cascade' })
-    .notNull(),
-  email: text('email').unique().notNull(),
-  username: text('username').notNull(),
-  displayName: text('display_name'),
-  avatarUrl: text('avatar_url'),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  orgId:        uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  email:        text('email').unique().notNull(),
+  username:     text('username').notNull(),
+  displayName:  text('display_name'),
+  avatarUrl:    text('avatar_url'),
   passwordHash: text('password_hash'),
-  status: text('status').default('active').notNull(),
-  lastSeenAt: timestamp('last_seen_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  status:       text('status').default('active').notNull(),
+  lastSeenAt:   timestamp('last_seen_at'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
 })
 
 export const roles = pgTable('roles', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').references(() => organizations.id),
-  name: text('name').notNull(),
-  scope: text('scope').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  orgId:       uuid('org_id').references(() => organizations.id),
+  name:        text('name').notNull(),
+  scope:       text('scope').notNull(),
   permissions: jsonb('permissions').default([]).notNull(),
-  isSystem: boolean('is_system').default(false).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  isSystem:    boolean('is_system').default(false).notNull(),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const userRoles = pgTable('user_roles', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  roleId: uuid('role_id')
-    .references(() => roles.id, { onDelete: 'cascade' })
-    .notNull(),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  userId:       uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  roleId:       uuid('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
   resourceType: text('resource_type'),
-  resourceId: uuid('resource_id'),
-  grantedBy: uuid('granted_by').references(() => users.id),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  resourceId:   uuid('resource_id'),
+  grantedBy:    uuid('granted_by').references(() => users.id),
+  expiresAt:    timestamp('expires_at'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
 })
 
 export const groups = pgTable('groups', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id')
-    .references(() => organizations.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: text('name').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  orgId:       uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name:        text('name').notNull(),
   description: text('description'),
-  createdBy: uuid('created_by')
-    .references(() => users.id)
-    .notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdBy:   uuid('created_by').references(() => users.id).notNull(),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const groupMembers = pgTable('group_members', {
-  groupId: uuid('group_id')
-    .references(() => groups.id, { onDelete: 'cascade' })
-    .notNull(),
-  userId: uuid('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  role: text('role').default('member').notNull(),
+  groupId:  uuid('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+  userId:   uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  role:     text('role').default('member').notNull(),
   joinedAt: timestamp('joined_at').defaultNow().notNull(),
 })
 
 export const sessions = pgTable('sessions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  tokenHash: text('token_hash').unique().notNull(),
-  ipAddress: inet('ip_address'),
-  userAgent: text('user_agent'),
-  expiresAt: timestamp('expires_at').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  userId:     uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tokenHash:  text('token_hash').unique().notNull(),
+  ipAddress:  inet('ip_address'),
+  userAgent:  text('user_agent'),
+  expiresAt:  timestamp('expires_at').notNull(),
+  createdAt:  timestamp('created_at').defaultNow().notNull(),
 })
 
 export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').references(() => organizations.id),
-  actorId: uuid('actor_id').references(() => users.id),
-  action: text('action').notNull(),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  orgId:        uuid('org_id').references(() => organizations.id),
+  actorId:      uuid('actor_id').references(() => users.id),
+  action:       text('action').notNull(),
   resourceType: text('resource_type'),
-  resourceId: uuid('resource_id'),
-  metadata: jsonb('metadata').default({}).notNull(),
-  ipAddress: inet('ip_address'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  resourceId:   uuid('resource_id'),
+  metadata:     jsonb('metadata').default({}).notNull(),
+  ipAddress:    inet('ip_address'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
 })
 ```
 
 **`src/schema/project.ts`:**
-
 ```typescript
-import {
-  pgTable,
-  uuid,
-  text,
-  serial,
-  integer,
-  timestamp,
-  jsonb,
-  boolean,
-  date,
-} from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, serial, integer, timestamp, jsonb, boolean, date } from 'drizzle-orm/pg-core'
 import { users, organizations } from './auth'
 
 export const projects = pgTable('projects', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').notNull(),
-  name: text('name').notNull(),
-  slug: text('slug').notNull(),
-  description: text('description'),
-  visibility: text('visibility').default('private').notNull(),
-  giteaRepoId: integer('gitea_repo_id'),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  orgId:         uuid('org_id').notNull(),
+  name:          text('name').notNull(),
+  slug:          text('slug').notNull(),
+  description:   text('description'),
+  visibility:    text('visibility').default('private').notNull(),
+  giteaRepoId:   integer('gitea_repo_id'),
   defaultBranch: text('default_branch').default('main').notNull(),
-  settings: jsonb('settings').default({}).notNull(),
-  createdBy: uuid('created_by').notNull(),
-  archivedAt: timestamp('archived_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  settings:      jsonb('settings').default({}).notNull(),
+  createdBy:     uuid('created_by').notNull(),
+  archivedAt:    timestamp('archived_at'),
+  createdAt:     timestamp('created_at').defaultNow().notNull(),
 })
 
 export const issues = pgTable('issues', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
-    .references(() => projects.id, { onDelete: 'cascade' })
-    .notNull(),
-  number: serial('number').notNull(),
-  title: text('title').notNull(),
-  body: text('body'),
-  status: text('status').default('open').notNull(),
-  priority: text('priority').default('medium').notNull(),
-  type: text('type').default('task').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  projectId:   uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  number:      serial('number').notNull(),
+  title:       text('title').notNull(),
+  body:        text('body'),
+  status:      text('status').default('open').notNull(),
+  priority:    text('priority').default('medium').notNull(),
+  type:        text('type').default('task').notNull(),
   assigneeIds: jsonb('assignee_ids').default([]).notNull(),
-  labelIds: jsonb('label_ids').default([]).notNull(),
+  labelIds:    jsonb('label_ids').default([]).notNull(),
   milestoneId: uuid('milestone_id'),
-  parentId: uuid('parent_id'),
-  createdBy: uuid('created_by').notNull(),
-  closedBy: uuid('closed_by'),
-  closedAt: timestamp('closed_at'),
-  dueDate: date('due_date'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  parentId:    uuid('parent_id'),
+  createdBy:   uuid('created_by').notNull(),
+  closedBy:    uuid('closed_by'),
+  closedAt:    timestamp('closed_at'),
+  dueDate:     date('due_date'),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
+  updatedAt:   timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const milestones = pgTable('milestones', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
-    .references(() => projects.id, { onDelete: 'cascade' })
-    .notNull(),
-  title: text('title').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  projectId:   uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  title:       text('title').notNull(),
   description: text('description'),
-  dueDate: date('due_date'),
-  status: text('status').default('open').notNull(),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  dueDate:     date('due_date'),
+  status:      text('status').default('open').notNull(),
+  createdBy:   uuid('created_by').notNull(),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const pullRequests = pgTable('pull_requests', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
-    .references(() => projects.id, { onDelete: 'cascade' })
-    .notNull(),
-  number: integer('number').notNull(),
-  title: text('title').notNull(),
-  body: text('body'),
-  status: text('status').default('open').notNull(),
-  sourceBranch: text('source_branch').notNull(),
-  targetBranch: text('target_branch').notNull(),
-  headSha: text('head_sha'),
-  baseSha: text('base_sha'),
-  authorId: uuid('author_id').notNull(),
-  mergedBy: uuid('merged_by'),
-  mergedAt: timestamp('merged_at'),
-  linkedIssues: jsonb('linked_issues').default([]).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  projectId:     uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  number:        integer('number').notNull(),
+  title:         text('title').notNull(),
+  body:          text('body'),
+  status:        text('status').default('open').notNull(),
+  sourceBranch:  text('source_branch').notNull(),
+  targetBranch:  text('target_branch').notNull(),
+  headSha:       text('head_sha'),
+  baseSha:       text('base_sha'),
+  authorId:      uuid('author_id').notNull(),
+  mergedBy:      uuid('merged_by'),
+  mergedAt:      timestamp('merged_at'),
+  linkedIssues:  jsonb('linked_issues').default([]).notNull(),
+  createdAt:     timestamp('created_at').defaultNow().notNull(),
+  updatedAt:     timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const pipelines = pgTable('pipelines', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
-    .references(() => projects.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: text('name').notNull(),
-  trigger: jsonb('trigger').notNull(),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  projectId:  uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  name:       text('name').notNull(),
+  trigger:    jsonb('trigger').notNull(),
   definition: jsonb('definition').notNull(),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdBy:  uuid('created_by').notNull(),
+  createdAt:  timestamp('created_at').defaultNow().notNull(),
 })
 
 export const pipelineRuns = pgTable('pipeline_runs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  pipelineId: uuid('pipeline_id').references(() => pipelines.id),
-  projectId: uuid('project_id').notNull(),
-  triggerType: text('trigger_type'),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  pipelineId:   uuid('pipeline_id').references(() => pipelines.id),
+  projectId:    uuid('project_id').notNull(),
+  triggerType:  text('trigger_type'),
   triggerActor: uuid('trigger_actor'),
-  commitSha: text('commit_sha'),
-  branch: text('branch'),
-  status: text('status').default('queued').notNull(),
-  startedAt: timestamp('started_at'),
-  finishedAt: timestamp('finished_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  commitSha:    text('commit_sha'),
+  branch:       text('branch'),
+  status:       text('status').default('queued').notNull(),
+  startedAt:    timestamp('started_at'),
+  finishedAt:   timestamp('finished_at'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
 })
 
 export const pipelineJobs = pgTable('pipeline_jobs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  runId: uuid('run_id')
-    .references(() => pipelineRuns.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: text('name').notNull(),
-  status: text('status').default('pending').notNull(),
-  runnerId: uuid('runner_id'),
-  logStreamId: text('log_stream_id'),
-  startedAt: timestamp('started_at'),
-  finishedAt: timestamp('finished_at'),
-  exitCode: integer('exit_code'),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  runId:        uuid('run_id').references(() => pipelineRuns.id, { onDelete: 'cascade' }).notNull(),
+  name:         text('name').notNull(),
+  status:       text('status').default('pending').notNull(),
+  runnerId:     uuid('runner_id'),
+  logStreamId:  text('log_stream_id'),
+  startedAt:    timestamp('started_at'),
+  finishedAt:   timestamp('finished_at'),
+  exitCode:     integer('exit_code'),
 })
 ```
 
 **`src/schema/chat.ts`:**
-
 ```typescript
-import {
-  pgTable,
-  uuid,
-  text,
-  timestamp,
-  jsonb,
-  primaryKey,
-} from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, timestamp, jsonb, primaryKey } from 'drizzle-orm/pg-core'
 
 export const channels = pgTable('channels', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').notNull(),
-  projectId: uuid('project_id'),
-  name: text('name').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  orgId:       uuid('org_id').notNull(),
+  projectId:   uuid('project_id'),
+  name:        text('name').notNull(),
   description: text('description'),
-  type: text('type').default('public').notNull(),
-  createdBy: uuid('created_by').notNull(),
-  archivedAt: timestamp('archived_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  type:        text('type').default('public').notNull(),
+  createdBy:   uuid('created_by').notNull(),
+  archivedAt:  timestamp('archived_at'),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const channelMembers = pgTable('channel_members', {
-  channelId: uuid('channel_id')
-    .references(() => channels.id, { onDelete: 'cascade' })
-    .notNull(),
-  userId: uuid('user_id').notNull(),
-  role: text('role').default('member').notNull(),
+  channelId:  uuid('channel_id').references(() => channels.id, { onDelete: 'cascade' }).notNull(),
+  userId:     uuid('user_id').notNull(),
+  role:       text('role').default('member').notNull(),
   lastReadAt: timestamp('last_read_at').defaultNow(),
-  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  joinedAt:   timestamp('joined_at').defaultNow().notNull(),
 })
 
 export const messages = pgTable('messages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  channelId: uuid('channel_id')
-    .references(() => channels.id, { onDelete: 'cascade' })
-    .notNull(),
-  threadId: uuid('thread_id'),
-  authorId: uuid('author_id').notNull(),
-  content: text('content').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  channelId:   uuid('channel_id').references(() => channels.id, { onDelete: 'cascade' }).notNull(),
+  threadId:    uuid('thread_id'),
+  authorId:    uuid('author_id').notNull(),
+  content:     text('content').notNull(),
   contentType: text('content_type').default('markdown').notNull(),
   attachments: jsonb('attachments').default([]).notNull(),
-  mentions: jsonb('mentions').default([]).notNull(),
-  reactions: jsonb('reactions').default({}).notNull(),
-  contextRef: jsonb('context_ref'),
-  editedAt: timestamp('edited_at'),
-  deletedAt: timestamp('deleted_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  mentions:    jsonb('mentions').default([]).notNull(),
+  reactions:   jsonb('reactions').default({}).notNull(),
+  contextRef:  jsonb('context_ref'),
+  editedAt:    timestamp('edited_at'),
+  deletedAt:   timestamp('deleted_at'),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 ```
 
 **`src/schema/deploy.ts`:**
-
 ```typescript
-import {
-  pgTable,
-  uuid,
-  text,
-  integer,
-  timestamp,
-  jsonb,
-} from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core'
 
 export const deployTargets = pgTable('deploy_targets', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  orgId: uuid('org_id').notNull(),
-  name: text('name').notNull(),
-  type: text('type').notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  orgId:       uuid('org_id').notNull(),
+  name:        text('name').notNull(),
+  type:        text('type').notNull(),
   environment: text('environment').notNull(),
-  config: jsonb('config').notNull(),
-  healthUrl: text('health_url'),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  config:      jsonb('config').notNull(),
+  healthUrl:   text('health_url'),
+  createdBy:   uuid('created_by').notNull(),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const deploySpecs = pgTable('deploy_specs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').notNull(),
-  targetId: uuid('target_id').references(() => deployTargets.id),
-  name: text('name').notNull(),
-  spec: jsonb('spec').notNull(),
-  version: integer('version').default(1).notNull(),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  projectId:  uuid('project_id').notNull(),
+  targetId:   uuid('target_id').references(() => deployTargets.id),
+  name:       text('name').notNull(),
+  spec:       jsonb('spec').notNull(),
+  version:    integer('version').default(1).notNull(),
+  createdBy:  uuid('created_by').notNull(),
+  createdAt:  timestamp('created_at').defaultNow().notNull(),
 })
 
 export const deployments = pgTable('deployments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  specId: uuid('spec_id').references(() => deploySpecs.id),
-  projectId: uuid('project_id').notNull(),
-  targetId: uuid('target_id').notNull(),
-  triggeredBy: uuid('triggered_by').notNull(),
-  triggerType: text('trigger_type'),
-  commitSha: text('commit_sha'),
-  imageTag: text('image_tag'),
-  status: text('status').default('pending').notNull(),
-  strategy: text('strategy').default('rolling').notNull(),
-  approvedBy: uuid('approved_by'),
-  approvedAt: timestamp('approved_at'),
-  startedAt: timestamp('started_at'),
-  finishedAt: timestamp('finished_at'),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  specId:        uuid('spec_id').references(() => deploySpecs.id),
+  projectId:     uuid('project_id').notNull(),
+  targetId:      uuid('target_id').notNull(),
+  triggeredBy:   uuid('triggered_by').notNull(),
+  triggerType:   text('trigger_type'),
+  commitSha:     text('commit_sha'),
+  imageTag:      text('image_tag'),
+  status:        text('status').default('pending').notNull(),
+  strategy:      text('strategy').default('rolling').notNull(),
+  approvedBy:    uuid('approved_by'),
+  approvedAt:    timestamp('approved_at'),
+  startedAt:     timestamp('started_at'),
+  finishedAt:    timestamp('finished_at'),
   failureReason: text('failure_reason'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdAt:     timestamp('created_at').defaultNow().notNull(),
 })
 
 export const deploymentSteps = pgTable('deployment_steps', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  deploymentId: uuid('deployment_id')
-    .references(() => deployments.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: text('name').notNull(),
-  status: text('status').default('pending').notNull(),
-  logStreamId: text('log_stream_id'),
-  startedAt: timestamp('started_at'),
-  finishedAt: timestamp('finished_at'),
+  id:           uuid('id').primaryKey().defaultRandom(),
+  deploymentId: uuid('deployment_id').references(() => deployments.id, { onDelete: 'cascade' }).notNull(),
+  name:         text('name').notNull(),
+  status:       text('status').default('pending').notNull(),
+  logStreamId:  text('log_stream_id'),
+  startedAt:    timestamp('started_at'),
+  finishedAt:   timestamp('finished_at'),
 })
 ```
 
 **`src/schema/sandbox.ts`:**
-
 ```typescript
-import {
-  pgTable,
-  uuid,
-  text,
-  integer,
-  timestamp,
-  jsonb,
-} from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core'
 
 export const workspaces = pgTable('workspaces', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull(),
-  orgId: uuid('org_id').notNull(),
-  projectId: uuid('project_id'),
-  name: text('name').notNull(),
-  status: text('status').default('stopped').notNull(),
-  podName: text('pod_name'),
-  volumeName: text('volume_name'),
-  cpuLimit: text('cpu_limit').default('2').notNull(),
-  memoryLimit: text('memory_limit').default('2Gi').notNull(),
-  lastActiveAt: timestamp('last_active_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  id:            uuid('id').primaryKey().defaultRandom(),
+  userId:        uuid('user_id').notNull(),
+  orgId:         uuid('org_id').notNull(),
+  projectId:     uuid('project_id'),
+  name:          text('name').notNull(),
+  status:        text('status').default('stopped').notNull(),
+  podName:       text('pod_name'),
+  volumeName:    text('volume_name'),
+  cpuLimit:      text('cpu_limit').default('2').notNull(),
+  memoryLimit:   text('memory_limit').default('2Gi').notNull(),
+  lastActiveAt:  timestamp('last_active_at'),
+  createdAt:     timestamp('created_at').defaultNow().notNull(),
 })
 ```
 
 **`src/schema/notifications.ts`:**
-
 ```typescript
 import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const notifications = pgTable('notifications', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull(),
-  orgId: uuid('org_id').notNull(),
-  type: text('type').notNull(),
-  title: text('title').notNull(),
-  body: text('body'),
-  actionUrl: text('action_url'),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  userId:     uuid('user_id').notNull(),
+  orgId:      uuid('org_id').notNull(),
+  type:       text('type').notNull(),
+  title:      text('title').notNull(),
+  body:       text('body'),
+  actionUrl:  text('action_url'),
   sourceType: text('source_type'),
-  sourceId: uuid('source_id'),
-  readAt: timestamp('read_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  sourceId:   uuid('source_id'),
+  readAt:     timestamp('read_at'),
+  createdAt:  timestamp('created_at').defaultNow().notNull(),
 })
 ```
 
@@ -1134,7 +1018,6 @@ volumes:
 - [x] ### TASK P-09 — Root `.env.example`
 
 **File:** `.env.example`
-
 ```bash
 # Node
 NODE_ENV=development
@@ -1193,7 +1076,8 @@ OLLAMA_DEFAULT_MODEL=deepseek-coder-v2
 
 ---
 
-## **Pre-Sprint complete.** Proceed to Sprint 1.
+**Pre-Sprint complete.** Proceed to Sprint 1.
+---
 
 - [ ] ## SPRINT 1 — Foundation: Auth Service & RBAC Engine
 
@@ -1204,10 +1088,9 @@ OLLAMA_DEFAULT_MODEL=deepseek-coder-v2
 
 ---
 
-- [x] ### TASK 1-01 — Bootstrap `apps/auth-service`
+- [ ] ### TASK 1-01 — Bootstrap `apps/auth-service`
 
 **Files to create:**
-
 ```
 apps/auth-service/
 ├── package.json
@@ -1241,20 +1124,17 @@ apps/auth-service/
 ```
 
 **`src/config.ts`:**
-
 ```typescript
 import { z } from 'zod'
 
 const schema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
-  PORT: z.coerce.number().default(4001),
-  DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string(),
-  NATS_URL: z.string(),
-  JWT_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.string().default('24h'),
+  NODE_ENV:         z.enum(['development', 'production', 'test']).default('development'),
+  PORT:             z.coerce.number().default(4001),
+  DATABASE_URL:     z.string().url(),
+  REDIS_URL:        z.string(),
+  NATS_URL:         z.string(),
+  JWT_SECRET:       z.string().min(32),
+  JWT_EXPIRES_IN:   z.string().default('24h'),
 })
 
 export const config = schema.parse(process.env)
@@ -1262,7 +1142,6 @@ export type Config = typeof config
 ```
 
 **`src/app.ts`:**
-
 ```typescript
 import Fastify from 'fastify'
 import { createLogger } from '@devora/logger'
@@ -1291,9 +1170,7 @@ export async function buildApp() {
       })
     }
     logger.error(error)
-    return reply
-      .status(500)
-      .send({ code: 'GEN_002', message: 'Internal server error' })
+    return reply.status(500).send({ code: 'GEN_002', message: 'Internal server error' })
   })
 
   return app
@@ -1302,10 +1179,9 @@ export async function buildApp() {
 
 ---
 
-- [X] ### TASK 1-02 — Auth Routes & Service
+- [ ] ### TASK 1-02 — Auth Routes & Service
 
 **`src/routes/auth.ts` — endpoints:**
-
 ```
 POST /auth/register        → create org + first super-admin user
 POST /auth/login           → email + password → returns JWT + session
@@ -1317,18 +1193,13 @@ POST /auth/reset-password  → consumes reset token, sets new password
 ```
 
 **`src/services/auth.service.ts` structure:**
-
 ```typescript
 export class AuthService {
   // Register a new organization with first admin user
-  async register(
-    dto: RegisterDto
-  ): Promise<{ user: User; org: Organization; token: string }>
+  async register(dto: RegisterDto): Promise<{ user: User; org: Organization; token: string }>
 
   // Verify credentials, create session, return JWT
-  async login(
-    dto: LoginDto
-  ): Promise<{ user: User; token: string; sessionId: string }>
+  async login(dto: LoginDto): Promise<{ user: User; token: string; sessionId: string }>
 
   // Hash session token, store in Redis with TTL, invalidate on logout
   async logout(sessionId: string): Promise<void>
@@ -1343,7 +1214,6 @@ export class AuthService {
 ```
 
 **JWT payload structure:**
-
 ```typescript
 // Token contains: sub (userId), org (orgId), roles (roleId[])
 // Stored in Redis: `session:{sessionId}` → userId, TTL = JWT_EXPIRES_IN
@@ -1355,7 +1225,6 @@ export class AuthService {
 - [ ] ### TASK 1-03 — RBAC Engine
 
 **`src/services/rbac.service.ts` — this is the core permission engine:**
-
 ```typescript
 // Permission strings follow pattern: resource:action[:scope]
 // Examples:
@@ -1381,11 +1250,7 @@ export class RbacService {
   async assignRole(dto: AssignRoleDto): Promise<void>
 
   // Revoke role from user
-  async revokeRole(
-    userId: string,
-    roleId: string,
-    resourceId?: string
-  ): Promise<void>
+  async revokeRole(userId: string, roleId: string, resourceId?: string): Promise<void>
 
   // Seed system roles (called once on first install)
   async seedSystemRoles(orgId: string): Promise<void>
@@ -1393,44 +1258,31 @@ export class RbacService {
 ```
 
 **System roles and their permissions:**
-
 ```typescript
 export const SYSTEM_ROLES = {
   SUPER_ADMIN: {
     name: 'super_admin',
     scope: 'platform',
-    permissions: ['*'], // wildcard — all permissions
+    permissions: ['*'],  // wildcard — all permissions
   },
   ORG_ADMIN: {
     name: 'org_admin',
     scope: 'org',
     permissions: [
-      'org:read',
-      'org:manage',
-      'project:read',
-      'project:create',
-      'project:delete',
-      'user:read',
-      'user:invite',
-      'user:remove',
-      'role:assign',
-      'sandbox:read',
-      'deploy:read',
-      'deploy:staging',
-      'deploy:production',
+      'org:read', 'org:manage',
+      'project:read', 'project:create', 'project:delete',
+      'user:read', 'user:invite', 'user:remove',
+      'role:assign', 'sandbox:read',
+      'deploy:read', 'deploy:staging', 'deploy:production',
     ],
   },
   PROJECT_MANAGER: {
     name: 'project_manager',
     scope: 'project',
     permissions: [
-      'project:read',
-      'issue:read',
-      'issue:manage',
-      'sprint:manage',
-      'milestone:manage',
-      'deploy:production',
-      'monitor:team',
+      'project:read', 'issue:read', 'issue:manage',
+      'sprint:manage', 'milestone:manage',
+      'deploy:production', 'monitor:team',
       'pipeline:read',
     ],
   },
@@ -1438,45 +1290,31 @@ export const SYSTEM_ROLES = {
     name: 'tech_lead',
     scope: 'project',
     permissions: [
-      'project:read',
-      'issue:read',
-      'issue:manage',
-      'code:read',
-      'code:write',
-      'code:merge',
-      'pr:approve',
-      'pipeline:manage',
-      'deploy:staging',
-      'deploy:production',
-      'sandbox:create',
-      'ai:agent',
+      'project:read', 'issue:read', 'issue:manage',
+      'code:read', 'code:write', 'code:merge',
+      'pr:approve', 'pipeline:manage',
+      'deploy:staging', 'deploy:production',
+      'sandbox:create', 'ai:agent',
     ],
   },
   DEVELOPER: {
     name: 'developer',
     scope: 'project',
     permissions: [
-      'project:read',
-      'issue:read',
-      'issue:update',
-      'code:read',
-      'code:write',
-      'pr:create',
-      'pr:read',
+      'project:read', 'issue:read', 'issue:update',
+      'code:read', 'code:write',
+      'pr:create', 'pr:read',
       'pipeline:trigger',
       'deploy:staging',
-      'sandbox:create',
-      'ai:agent',
+      'sandbox:create', 'ai:agent',
     ],
   },
   VIEWER: {
     name: 'viewer',
     scope: 'project',
     permissions: [
-      'project:read',
-      'issue:read',
-      'code:read',
-      'pr:read',
+      'project:read', 'issue:read',
+      'code:read', 'pr:read',
       'deploy:read',
     ],
   },
@@ -1497,10 +1335,7 @@ export const SYSTEM_ROLES = {
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { UnauthorizedError } from '@devora/errors'
 
-export async function authenticate(
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
+export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   try {
     await request.jwtVerify()
     // request.user is now the JwtPayload
@@ -1510,22 +1345,14 @@ export async function authenticate(
 }
 
 // Permission guard factory — use as preHandler
-export function requirePermission(
-  permission: string,
-  resourceIdParam?: string
-) {
+export function requirePermission(permission: string, resourceIdParam?: string) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     await authenticate(request, reply)
     const { sub: userId, org: orgId } = request.user as JwtPayload
     const resourceId = resourceIdParam
       ? (request.params as Record<string, string>)[resourceIdParam]
       : undefined
-    const allowed = await rbacService.can(
-      userId,
-      permission,
-      resourceIdParam,
-      resourceId
-    )
+    const allowed = await rbacService.can(userId, permission, resourceIdParam, resourceId)
     if (!allowed) throw new ForbiddenError()
   }
 }
@@ -1536,7 +1363,6 @@ export function requirePermission(
 - [ ] ### TASK 1-05 — User & Org Routes
 
 **`src/routes/users.ts` endpoints:**
-
 ```
 GET    /orgs/:orgId/users              → list org members (requires org:read)
 POST   /orgs/:orgId/users/invite       → invite by email (requires user:invite)
@@ -1546,7 +1372,6 @@ DELETE /orgs/:orgId/users/:userId      → remove from org (requires user:remove
 ```
 
 **`src/routes/roles.ts` endpoints:**
-
 ```
 GET    /orgs/:orgId/roles              → list available roles
 POST   /orgs/:orgId/roles              → create custom role (requires role:manage)
@@ -1561,33 +1386,20 @@ DELETE /orgs/:orgId/users/:userId/roles/:roleId → revoke role
 - [ ] ### TASK 1-06 — NATS Event Publishing (Auth Service)
 
 **Add to auth service — publish events after successful operations:**
-
 ```typescript
 // After user created:
 publish(nc, Subjects.AUTH_USER_CREATED, {
-  userId,
-  orgId,
-  email,
-  username,
-  createdAt,
+  userId, orgId, email, username, createdAt
 })
 
 // After role assigned:
 publish(nc, Subjects.AUTH_ROLE_ASSIGNED, {
-  userId,
-  roleId,
-  roleName,
-  resourceType,
-  resourceId,
-  grantedBy,
+  userId, roleId, roleName, resourceType, resourceId, grantedBy
 })
 
 // After user invited:
 publish(nc, Subjects.AUTH_USER_INVITED, {
-  email,
-  orgId,
-  invitedBy,
-  expiresAt,
+  email, orgId, invitedBy, expiresAt
 })
 ```
 
@@ -1598,7 +1410,6 @@ publish(nc, Subjects.AUTH_USER_INVITED, {
 **Purpose:** Single entry point — validates JWT, routes to correct service.
 
 **Files:**
-
 ```
 apps/gateway/
 ├── package.json
@@ -1614,24 +1425,22 @@ apps/gateway/
 ```
 
 **`src/routes/index.ts` — proxy routing table:**
-
 ```typescript
 // All requests authenticated at gateway level before proxying
 // Route prefixes map to internal service URLs
 
 const routes = [
-  { prefix: '/api/auth', upstream: config.AUTH_SERVICE_URL },
-  { prefix: '/api/projects', upstream: config.PROJECT_SERVICE_URL },
-  { prefix: '/api/chat', upstream: config.CHAT_SERVICE_URL },
-  { prefix: '/api/deploy', upstream: config.DEPLOY_SERVICE_URL },
+  { prefix: '/api/auth',    upstream: config.AUTH_SERVICE_URL },
+  { prefix: '/api/projects',upstream: config.PROJECT_SERVICE_URL },
+  { prefix: '/api/chat',    upstream: config.CHAT_SERVICE_URL },
+  { prefix: '/api/deploy',  upstream: config.DEPLOY_SERVICE_URL },
   { prefix: '/api/monitor', upstream: config.MONITOR_SERVICE_URL },
   { prefix: '/api/sandbox', upstream: config.SANDBOX_SERVICE_URL },
-  { prefix: '/api/notify', upstream: config.NOTIFY_SERVICE_URL },
+  { prefix: '/api/notify',  upstream: config.NOTIFY_SERVICE_URL },
 ]
 ```
 
 **Gateway responsibilities:**
-
 - Verify JWT on every request (except `/api/auth/login`, `/api/auth/register`)
 - Forward `X-User-Id`, `X-Org-Id`, `X-User-Roles` headers to downstream services
 - Rate limiting per user (100 req/min default, configurable)
@@ -1642,7 +1451,6 @@ const routes = [
 - [ ] ### TASK 1-08 — Bootstrap `apps/portal` (React skeleton)
 
 **Files to create:**
-
 ```
 apps/portal/
 ├── package.json
@@ -1674,7 +1482,6 @@ apps/portal/
 ```
 
 **`src/store/auth.store.ts`:**
-
 ```typescript
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -1685,12 +1492,7 @@ interface AuthState {
   org: Organization | null
   token: string | null
   permissions: string[]
-  setAuth: (
-    user: User,
-    org: Organization,
-    token: string,
-    permissions: string[]
-  ) => void
+  setAuth: (user: User, org: Organization, token: string, permissions: string[]) => void
   clearAuth: () => void
   can: (permission: string) => boolean
 }
@@ -1704,8 +1506,7 @@ export const useAuthStore = create<AuthState>()(
       permissions: [],
       setAuth: (user, org, token, permissions) =>
         set({ user, org, token, permissions }),
-      clearAuth: () =>
-        set({ user: null, org: null, token: null, permissions: [] }),
+      clearAuth: () => set({ user: null, org: null, token: null, permissions: [] }),
       can: (permission) => {
         const { permissions } = get()
         return permissions.includes('*') || permissions.includes(permission)
@@ -1717,7 +1518,6 @@ export const useAuthStore = create<AuthState>()(
 ```
 
 **`src/lib/api.ts`:**
-
 ```typescript
 import axios from 'axios'
 import { useAuthStore } from '../store/auth.store'
@@ -1745,7 +1545,6 @@ api.interceptors.response.use(
 ```
 
 **Login page structure:**
-
 ```typescript
 // LoginPage.tsx
 // - Email + password form
@@ -1762,7 +1561,6 @@ api.interceptors.response.use(
 - [ ] ### TASK 1-09 — Auth Service Tests
 
 **`src/__tests__/auth.test.ts` — test cases:**
-
 ```typescript
 describe('POST /auth/register', () => {
   it('creates org and super-admin user')
@@ -1784,7 +1582,6 @@ describe('GET /auth/me', () => {
 ```
 
 **`src/__tests__/rbac.test.ts` — test cases:**
-
 ```typescript
 describe('RbacService.can()', () => {
   it('super admin can do everything (wildcard)')
@@ -1799,11 +1596,9 @@ describe('RbacService.can()', () => {
 ---
 
 ### Sprint 1 Acceptance Criteria
-
-`POST /api/auth/register` creates org + user, returns JWT `POST /api/auth/login` returns valid JWT `GET /api/auth/me` returns user with resolved permissions array RBAC `can()` correctly enforces all system role permissions Gateway proxies requests to auth-service with user headers forwarded Portal login page renders, submits, stores token, redirects All auth service tests pass All RBAC tests pass DB migrations apply cleanly on fresh PostgreSQL
+ `POST /api/auth/register` creates org + user, returns JWT `POST /api/auth/login` returns valid JWT `GET /api/auth/me` returns user with resolved permissions array RBAC `can()` correctly enforces all system role permissions Gateway proxies requests to auth-service with user headers forwarded Portal login page renders, submits, stores token, redirects All auth service tests pass All RBAC tests pass DB migrations apply cleanly on fresh PostgreSQL
 
 ---
-
 - [ ] ## SPRINT 2 — Sandbox Orchestration & Code Editor
 
 **Duration:** 2 weeks
@@ -1816,7 +1611,6 @@ describe('RbacService.can()', () => {
 - [ ] ### TASK 2-01 — Bootstrap `apps/sandbox-service`
 
 **Files:**
-
 ```
 apps/sandbox-service/
 ├── package.json
@@ -1846,19 +1640,18 @@ apps/sandbox-service/
 - [ ] ### TASK 2-02 — Kubernetes Pod Templates
 
 **`src/k8s/workspace-pod.template.ts`:**
-
 ```typescript
 import { V1Pod } from '@kubernetes/client-node'
 
 export interface WorkspacePodOptions {
-  podName: string
-  userId: string
-  orgId: string
-  volumeName: string
-  cpuLimit: string // e.g. '2'
-  memoryLimit: string // e.g. '2Gi'
-  ollamaUrl: string
-  platformApiUrl: string
+  podName:       string
+  userId:        string
+  orgId:         string
+  volumeName:    string
+  cpuLimit:      string    // e.g. '2'
+  memoryLimit:   string    // e.g. '2Gi'
+  ollamaUrl:     string
+  platformApiUrl:string
 }
 
 export function buildWorkspacePod(opts: WorkspacePodOptions): V1Pod {
@@ -1878,60 +1671,50 @@ export function buildWorkspacePod(opts: WorkspacePodOptions): V1Pod {
       // Schedule only on nodes labelled node-role=sandbox
       nodeSelector: { 'node-role': 'sandbox' },
       securityContext: { runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000 },
-      containers: [
-        {
-          name: 'workspace',
-          image: 'devora/workspace:latest',
-          ports: [{ containerPort: 8080, name: 'ide' }],
-          resources: {
-            limits: { cpu: opts.cpuLimit, memory: opts.memoryLimit },
-            requests: { cpu: '100m', memory: '256Mi' },
-          },
-          securityContext: {
-            allowPrivilegeEscalation: false,
-            readOnlyRootFilesystem: false, // code-server needs writable fs
-            runAsNonRoot: true,
-            seccompProfile: { type: 'RuntimeDefault' },
-          },
-          volumeMounts: [
-            {
-              name: 'workspace-data',
-              mountPath: '/workspace',
-            },
-          ],
-          env: [
-            { name: 'OLLAMA_URL', value: opts.ollamaUrl },
-            { name: 'PLATFORM_API', value: opts.platformApiUrl },
-            { name: 'DEVORA_USER_ID', value: opts.userId },
-            { name: 'DEVORA_ORG_ID', value: opts.orgId },
-          ],
-          readinessProbe: {
-            httpGet: { path: '/healthz', port: 8080 },
-            initialDelaySeconds: 5,
-            periodSeconds: 5,
-          },
+      containers: [{
+        name: 'workspace',
+        image: 'devora/workspace:latest',
+        ports: [{ containerPort: 8080, name: 'ide' }],
+        resources: {
+          limits:   { cpu: opts.cpuLimit, memory: opts.memoryLimit },
+          requests: { cpu: '100m',        memory: '256Mi' },
         },
-      ],
-      volumes: [
-        {
+        securityContext: {
+          allowPrivilegeEscalation: false,
+          readOnlyRootFilesystem: false,  // code-server needs writable fs
+          runAsNonRoot: true,
+          seccompProfile: { type: 'RuntimeDefault' },
+        },
+        volumeMounts: [{
           name: 'workspace-data',
-          persistentVolumeClaim: { claimName: opts.volumeName },
+          mountPath: '/workspace',
+        }],
+        env: [
+          { name: 'OLLAMA_URL',      value: opts.ollamaUrl },
+          { name: 'PLATFORM_API',    value: opts.platformApiUrl },
+          { name: 'DEVORA_USER_ID',  value: opts.userId },
+          { name: 'DEVORA_ORG_ID',   value: opts.orgId },
+        ],
+        readinessProbe: {
+          httpGet: { path: '/healthz', port: 8080 },
+          initialDelaySeconds: 5,
+          periodSeconds: 5,
         },
-      ],
+      }],
+      volumes: [{
+        name: 'workspace-data',
+        persistentVolumeClaim: { claimName: opts.volumeName },
+      }],
     },
   }
 }
 ```
 
 **`src/k8s/workspace-pvc.template.ts`:**
-
 ```typescript
 import { V1PersistentVolumeClaim } from '@kubernetes/client-node'
 
-export function buildWorkspacePVC(
-  pvcName: string,
-  storageSize: string = '10Gi'
-): V1PersistentVolumeClaim {
+export function buildWorkspacePVC(pvcName: string, storageSize: string = '10Gi'): V1PersistentVolumeClaim {
   return {
     apiVersion: 'v1',
     kind: 'PersistentVolumeClaim',
@@ -1941,7 +1724,7 @@ export function buildWorkspacePVC(
     },
     spec: {
       accessModes: ['ReadWriteOnce'],
-      storageClassName: 'platform-fast', // NVMe-backed StorageClass
+      storageClassName: 'platform-fast',  // NVMe-backed StorageClass
       resources: { requests: { storage: storageSize } },
     },
   }
@@ -1953,15 +1736,11 @@ export function buildWorkspacePVC(
 - [ ] ### TASK 2-03 — Workspace Service
 
 **`src/services/workspace.service.ts` — core logic:**
-
 ```typescript
 export class WorkspaceService {
+
   // Called when developer opens IDE — idempotent
-  async getOrCreate(
-    userId: string,
-    orgId: string,
-    projectId?: string
-  ): Promise<WorkspaceSession>
+  async getOrCreate(userId: string, orgId: string, projectId?: string): Promise<WorkspaceSession>
   // 1. Check DB for existing workspace record
   // 2. If none: create PVC, create workspace DB record
   // 3. Check if pod is Running
@@ -1990,7 +1769,6 @@ export class WorkspaceService {
 - [ ] ### TASK 2-04 — Workspace Routes
 
 **`src/routes/workspaces.ts` endpoints:**
-
 ```
 POST /workspaces                 → getOrCreate workspace, returns proxyUrl
 GET  /workspaces                 → list user's workspaces
@@ -2001,7 +1779,6 @@ GET  /workspaces/:id/logs        → stream pod logs (SSE)
 ```
 
 **`src/routes/proxy.ts` — WebSocket proxy:**
-
 ```typescript
 // Route: GET /workspaces/:id/connect
 // 1. Verify user owns workspace (auth check)
@@ -2016,7 +1793,6 @@ GET  /workspaces/:id/logs        → stream pod logs (SSE)
 - [ ] ### TASK 2-05 — Workspace Docker Image
 
 **File:** `apps/sandbox-service/workspace-image/Dockerfile`
-
 ```dockerfile
 FROM codercom/code-server:4.20.0
 
@@ -2083,7 +1859,7 @@ app.post('/complete', async (req) => {
 app.post('/chat', async (req) => {
   const { messages, context } = req.body as ChatRequest
   const systemPrompt = buildSystemPrompt(context)
-  return streamOllamaChat(systemPrompt, messages) // SSE stream
+  return streamOllamaChat(systemPrompt, messages)  // SSE stream
 })
 
 // Agent action — read file, run command, apply patch
@@ -2108,7 +1884,6 @@ app.listen({ port: 9090, host: '127.0.0.1' })
 - [ ] ### TASK 2-07 — IDE Portal View
 
 **Files:**
-
 ```
 apps/portal/src/pages/ide/
 ├── IdePage.tsx           ← main IDE page
@@ -2117,7 +1892,6 @@ apps/portal/src/pages/ide/
 ```
 
 **`IdePage.tsx` logic:**
-
 ```typescript
 // 1. On mount: call POST /api/sandbox/workspaces
 // 2. Poll GET /api/sandbox/workspaces/:id until status === 'running'
@@ -2129,7 +1903,6 @@ apps/portal/src/pages/ide/
 ```
 
 **`IdeFrame.tsx`:**
-
 ```typescript
 // <iframe src={proxyUrl} style={{ width: '100%', height: '100vh', border: 'none' }} />
 // Allow: clipboard-read; clipboard-write
@@ -2145,27 +1918,19 @@ apps/portal/src/pages/ide/
 publish(nc, Subjects.SANDBOX_CREATED, { workspaceId, userId, orgId })
 
 // After workspace stopped:
-publish(nc, Subjects.SANDBOX_STOPPED, {
-  workspaceId,
-  userId,
-  reason: 'manual' | 'idle',
-})
+publish(nc, Subjects.SANDBOX_STOPPED, { workspaceId, userId, reason: 'manual' | 'idle' })
 
 // When resource spike detected (>90% CPU or RAM for >5 minutes):
 publish(nc, Subjects.SANDBOX_RESOURCE_SPIKE, {
-  workspaceId,
-  userId,
-  orgId,
-  cpu: cpuPercent,
-  memory: memoryMb,
+  workspaceId, userId, orgId,
+  cpu: cpuPercent, memory: memoryMb
 })
 ```
 
 ---
 
 ### Sprint 2 Acceptance Criteria
-
-`POST /api/sandbox/workspaces` creates pod in K8s within 30 seconds Second call returns existing running workspace (idempotent) Pod stops but PVC preserved on `POST /stop` Re-starting a stopped workspace reattaches existing PVC Portal IDE page shows loader, then renders code-server iframe Heartbeat keeps workspace alive while IDE is open Idle workspaces (no heartbeat for 30 min) auto-stop Sandbox pods cannot reach each other (network policy verified) AI agent responds to `/complete` within 500ms (small model)
+ `POST /api/sandbox/workspaces` creates pod in K8s within 30 seconds Second call returns existing running workspace (idempotent) Pod stops but PVC preserved on `POST /stop` Re-starting a stopped workspace reattaches existing PVC Portal IDE page shows loader, then renders code-server iframe Heartbeat keeps workspace alive while IDE is open Idle workspaces (no heartbeat for 30 min) auto-stop Sandbox pods cannot reach each other (network policy verified) AI agent responds to `/complete` within 500ms (small model)
 
 ---
 
@@ -2181,7 +1946,6 @@ publish(nc, Subjects.SANDBOX_RESOURCE_SPIKE, {
 - [ ] ### TASK 3-01 — Bootstrap `apps/chat-service`
 
 **Files:**
-
 ```
 apps/chat-service/
 ├── package.json
@@ -2221,7 +1985,6 @@ apps/chat-service/
 - [ ] ### TASK 3-02 — Socket.io Server & Authentication
 
 **`src/socket/index.ts`:**
-
 ```typescript
 import { Server } from 'socket.io'
 import { verifyJwt } from '../lib/jwt'
@@ -2250,7 +2013,6 @@ export function initSocketServer(httpServer: any) {
 ```
 
 **`src/socket/handlers/connection.handler.ts`:**
-
 ```typescript
 export function handleConnection(io: Server) {
   return async (socket: Socket) => {
@@ -2263,24 +2025,18 @@ export function handleConnection(io: Server) {
 
     // Mark user online in Redis
     await presenceService.setOnline(userId, orgId)
-    io.to(`org:${orgId}`).emit('ws:presence_update', {
-      userId,
-      status: 'online',
-    })
+    io.to(`org:${orgId}`).emit('ws:presence_update', { userId, status: 'online' })
 
     // Register event handlers
-    socket.on('ws:send_message', messageHandler(io, socket))
-    socket.on('ws:typing', typingHandler(io, socket))
-    socket.on('ws:react', reactHandler(io, socket))
-    socket.on('ws:mark_read', markReadHandler(io, socket))
-    socket.on('ws:join_channel', joinChannelHandler(io, socket))
+    socket.on('ws:send_message',  messageHandler(io, socket))
+    socket.on('ws:typing',        typingHandler(io, socket))
+    socket.on('ws:react',         reactHandler(io, socket))
+    socket.on('ws:mark_read',     markReadHandler(io, socket))
+    socket.on('ws:join_channel',  joinChannelHandler(io, socket))
 
     socket.on('disconnect', async () => {
       await presenceService.setOffline(userId, orgId)
-      io.to(`org:${orgId}`).emit('ws:presence_update', {
-        userId,
-        status: 'offline',
-      })
+      io.to(`org:${orgId}`).emit('ws:presence_update', { userId, status: 'offline' })
     })
   }
 }
@@ -2291,7 +2047,6 @@ export function handleConnection(io: Server) {
 - [ ] ### TASK 3-03 — Message Handler
 
 **`src/socket/handlers/message.handler.ts`:**
-
 ```typescript
 export function messageHandler(io: Server, socket: Socket) {
   return async (data: SendMessageEvent) => {
@@ -2299,20 +2054,16 @@ export function messageHandler(io: Server, socket: Socket) {
 
     // 1. Validate user is member of channel
     const isMember = await channelService.isMember(data.channelId, userId)
-    if (!isMember)
-      return socket.emit('ws:error', {
-        code: 'CHAT_001',
-        message: 'Not a channel member',
-      })
+    if (!isMember) return socket.emit('ws:error', { code: 'CHAT_001', message: 'Not a channel member' })
 
     // 2. Save message to PostgreSQL
     const message = await messageService.create({
-      channelId: data.channelId,
-      threadId: data.threadId,
-      authorId: userId,
-      content: data.content,
+      channelId:   data.channelId,
+      threadId:    data.threadId,
+      authorId:    userId,
+      content:     data.content,
       contentType: 'markdown',
-      contextRef: data.contextRef,
+      contextRef:  data.contextRef,
     })
 
     // 3. Detect and extract @mentions
@@ -2323,7 +2074,7 @@ export function messageHandler(io: Server, socket: Socket) {
       publish(nc, Subjects.CHAT_MENTION_DETECTED, {
         messageId: message.id,
         channelId: data.channelId,
-        authorId: userId,
+        authorId:  userId,
         mentions,
       })
     }
@@ -2335,7 +2086,7 @@ export function messageHandler(io: Server, socket: Socket) {
     publish(nc, Subjects.CHAT_MESSAGE_CREATED, {
       messageId: message.id,
       channelId: data.channelId,
-      authorId: userId,
+      authorId:  userId,
     })
   }
 }
@@ -2346,15 +2097,12 @@ export function messageHandler(io: Server, socket: Socket) {
 - [ ] ### TASK 3-04 — Typing & Presence
 
 **`src/services/presence.service.ts`:**
-
 ```typescript
 export class PresenceService {
   // Redis key: presence:{orgId}:{userId} = 'online' | 'away', TTL 90s
   async setOnline(userId: string, orgId: string): Promise<void>
   async setOffline(userId: string, orgId: string): Promise<void>
-  async getOrgPresence(
-    orgId: string
-  ): Promise<Record<string, 'online' | 'offline' | 'away'>>
+  async getOrgPresence(orgId: string): Promise<Record<string, 'online' | 'offline' | 'away'>>
 
   // Typing indicator: key expires after 2s automatically
   async setTyping(userId: string, channelId: string): Promise<void>
@@ -2367,7 +2115,6 @@ export class PresenceService {
 - [ ] ### TASK 3-05 — Channel & Message HTTP Routes
 
 **`src/routes/channels.ts`:**
-
 ```
 GET    /channels                   → list user's accessible channels
 POST   /channels                   → create channel (public/private)
@@ -2379,7 +2126,6 @@ DELETE /channels/:id/members/:uid  → remove member
 ```
 
 **`src/routes/messages.ts`:**
-
 ```
 GET    /channels/:id/messages      → paginated message history (cursor-based)
 POST   /channels/:id/messages      → send via HTTP (alternative to WS)
@@ -2394,7 +2140,6 @@ POST   /channels/search            → full-text search across channels user can
 - [ ] ### TASK 3-06 — Platform Event Cards (NATS → Chat)
 
 **`src/subscribers/platform-events.ts`:**
-
 ```typescript
 // This subscriber listens to deploy and build events
 // and posts automated cards to the relevant project channel
@@ -2403,17 +2148,17 @@ subscribe(nc, Subjects.DEPLOY_SUCCEEDED, async (data) => {
   const channel = await channelService.getProjectChannel(data.projectId)
   if (!channel) return
   await messageService.create({
-    channelId: channel.id,
-    authorId: SYSTEM_USER_ID,
-    content: '',
+    channelId:   channel.id,
+    authorId:    SYSTEM_USER_ID,
+    content:     '',
     contentType: 'card',
-    contextRef: { type: 'deploy', id: data.deploymentId },
+    contextRef:  { type: 'deploy', id: data.deploymentId },
   })
   io.to(`channel:${channel.id}`).emit('ws:deploy_card', {
     deploymentId: data.deploymentId,
-    status: 'succeeded',
-    commitSha: data.commitSha,
-    triggeredBy: data.triggeredBy,
+    status:       'succeeded',
+    commitSha:    data.commitSha,
+    triggeredBy:  data.triggeredBy,
   })
 })
 
@@ -2435,7 +2180,6 @@ subscribe(nc, Subjects.PROJECT_PIPELINE_FAILED, async (data) => {
 - [ ] ### TASK 3-07 — Portal Chat UI
 
 **Files:**
-
 ```
 apps/portal/src/pages/chat/
 ├── ChatPage.tsx             ← layout: sidebar + message pane
@@ -2449,7 +2193,6 @@ apps/portal/src/pages/chat/
 ```
 
 **Socket.io client setup:**
-
 ```typescript
 // src/lib/socket.ts
 import { io, Socket } from 'socket.io-client'
@@ -2470,16 +2213,15 @@ export function getSocket(): Socket {
 ```
 
 **Zustand chat store structure:**
-
 ```typescript
 // src/store/chat.store.ts
 interface ChatState {
   channels: Channel[]
   activeChannelId: string | null
-  messages: Record<string, Message[]> // channelId → messages[]
-  unreadCounts: Record<string, number> // channelId → count
+  messages: Record<string, Message[]>         // channelId → messages[]
+  unreadCounts: Record<string, number>         // channelId → count
   presence: Record<string, 'online' | 'offline'>
-  typingUsers: Record<string, string[]> // channelId → userId[]
+  typingUsers: Record<string, string[]>        // channelId → userId[]
   // Actions
   setActiveChannel: (id: string) => void
   addMessage: (channelId: string, message: Message) => void
@@ -2493,7 +2235,6 @@ interface ChatState {
 - [ ] ### TASK 3-08 — Bootstrap `apps/notification-service`
 
 **Files:**
-
 ```
 apps/notification-service/
 ├── package.json
@@ -2515,21 +2256,20 @@ apps/notification-service/
 ```
 
 **`src/subscribers/all-events.ts` — every event creates notifications:**
-
 ```typescript
 // Map from NATS subject → notification creation logic
 
 const handlers: Record<string, NotificationHandler> = {
   [Subjects.PROJECT_PIPELINE_FAILED]: async (data) => {
     await notificationService.create({
-      userId: data.triggerActor,
-      orgId: data.orgId,
-      type: 'build_failed',
-      title: 'Build failed',
-      body: `Pipeline "${data.pipelineName}" failed on ${data.branch}`,
-      actionUrl: `/projects/${data.projectId}/pipelines/${data.runId}`,
+      userId:     data.triggerActor,
+      orgId:      data.orgId,
+      type:       'build_failed',
+      title:      'Build failed',
+      body:       `Pipeline "${data.pipelineName}" failed on ${data.branch}`,
+      actionUrl:  `/projects/${data.projectId}/pipelines/${data.runId}`,
       sourceType: 'pipeline',
-      sourceId: data.runId,
+      sourceId:   data.runId,
     })
   },
   [Subjects.DEPLOY_APPROVAL_REQUIRED]: async (data) => {
@@ -2538,27 +2278,27 @@ const handlers: Record<string, NotificationHandler> = {
     for (const userId of approvers) {
       await notificationService.create({
         userId,
-        orgId: data.orgId,
-        type: 'deploy_approval',
-        title: 'Production deployment awaiting approval',
-        body: `${data.appName} v${data.version} needs your approval`,
-        actionUrl: `/deploy/${data.deploymentId}/approve`,
+        orgId:      data.orgId,
+        type:       'deploy_approval',
+        title:      'Production deployment awaiting approval',
+        body:       `${data.appName} v${data.version} needs your approval`,
+        actionUrl:  `/deploy/${data.deploymentId}/approve`,
         sourceType: 'deployment',
-        sourceId: data.deploymentId,
+        sourceId:   data.deploymentId,
       })
     }
   },
   [Subjects.CHAT_MENTION_DETECTED]: async (data) => {
     for (const mentionedUserId of data.mentions) {
       await notificationService.create({
-        userId: mentionedUserId,
-        orgId: data.orgId,
-        type: 'mention',
-        title: 'You were mentioned',
-        body: `In #${data.channelName}`,
-        actionUrl: `/chat/${data.channelId}?msg=${data.messageId}`,
+        userId:     mentionedUserId,
+        orgId:      data.orgId,
+        type:       'mention',
+        title:      'You were mentioned',
+        body:       `In #${data.channelName}`,
+        actionUrl:  `/chat/${data.channelId}?msg=${data.messageId}`,
         sourceType: 'chat',
-        sourceId: data.messageId,
+        sourceId:   data.messageId,
       })
     }
   },
@@ -2572,7 +2312,6 @@ for (const [subject, handler] of Object.entries(handlers)) {
 ```
 
 **Notification routes:**
-
 ```
 GET    /notifications              → paginated list for current user
 PATCH  /notifications/:id/read    → mark as read
@@ -2586,7 +2325,6 @@ DELETE /notifications/:id          → dismiss
 - [ ] ### TASK 3-09 — Portal Notification Center
 
 **Files:**
-
 ```
 apps/portal/src/components/notifications/
 ├── NotificationBell.tsx       ← top bar icon with unread badge count
@@ -2596,7 +2334,6 @@ apps/portal/src/components/notifications/
 ```
 
 **Real-time updates:**
-
 ```typescript
 // When ws:notification arrives via Socket.io:
 // 1. Add to Zustand notifications store
@@ -2607,11 +2344,9 @@ apps/portal/src/components/notifications/
 ---
 
 ### Sprint 3 Acceptance Criteria
-
-Developer can send message to channel, all members receive it in real-time Typing indicator appears for other users and auto-clears after 2 seconds @mention in a message creates a notification for the mentioned user Failed build posts a card to the project channel automatically Successful deployment posts a card to the project channel Notification bell shows unread count, panel lists all notifications Marking notification read updates the badge count immediately User presence (online/offline) visible in channel member list
+ Developer can send message to channel, all members receive it in real-time Typing indicator appears for other users and auto-clears after 2 seconds @mention in a message creates a notification for the mentioned user Failed build posts a card to the project channel automatically Successful deployment posts a card to the project channel Notification bell shows unread count, panel lists all notifications Marking notification read updates the badge count immediately User presence (online/offline) visible in channel member list
 
 ---
-
 - [ ] ## SPRINT 4 — Project Management
 
 **Duration:** 2 weeks
@@ -2624,7 +2359,6 @@ Developer can send message to channel, all members receive it in real-time Typin
 - [ ] ### TASK 4-01 — Add Gitea to Dev Infrastructure
 
 **Add to `infra/compose/dev.yml`:**
-
 ```yaml
 gitea:
   image: gitea/gitea:1.21-rootless
@@ -2655,7 +2389,6 @@ postgres-gitea:
 - [ ] ### TASK 4-02 — Bootstrap `apps/project-service`
 
 **Files:**
-
 ```
 apps/project-service/
 ├── package.json
@@ -2690,7 +2423,6 @@ apps/project-service/
 - [ ] ### TASK 4-03 — Gitea Integration Service
 
 **`src/services/gitea.service.ts`:**
-
 ```typescript
 // Wraps Gitea's REST API v1
 // All Gitea operations go through this service — never direct from routes
@@ -2703,54 +2435,22 @@ export class GiteaService {
   async createOrg(slug: string, name: string): Promise<GiteaOrg>
 
   // Create a repo under a Gitea org (mirrors Devora project creation)
-  async createRepo(
-    orgSlug: string,
-    repoName: string,
-    opts: RepoOptions
-  ): Promise<GiteaRepo>
+  async createRepo(orgSlug: string, repoName: string, opts: RepoOptions): Promise<GiteaRepo>
 
   // Create a user account in Gitea (mirrors Devora user creation)
-  async createUser(
-    username: string,
-    email: string,
-    password: string
-  ): Promise<GiteaUser>
+  async createUser(username: string, email: string, password: string): Promise<GiteaUser>
 
   // Add user to Gitea team/repo with appropriate permissions
-  async addCollaborator(
-    orgSlug: string,
-    repoName: string,
-    username: string,
-    permission: 'read' | 'write' | 'admin'
-  ): Promise<void>
+  async addCollaborator(orgSlug: string, repoName: string, username: string, permission: 'read' | 'write' | 'admin'): Promise<void>
 
   // Get branches, commits, file tree — used by portal code browser
   async getBranches(orgSlug: string, repoName: string): Promise<GitBranch[]>
-  async getCommits(
-    orgSlug: string,
-    repoName: string,
-    branch: string,
-    page: number
-  ): Promise<GitCommit[]>
-  async getFileTree(
-    orgSlug: string,
-    repoName: string,
-    branch: string,
-    path: string
-  ): Promise<FileTreeEntry[]>
-  async getFileContent(
-    orgSlug: string,
-    repoName: string,
-    branch: string,
-    filePath: string
-  ): Promise<string>
+  async getCommits(orgSlug: string, repoName: string, branch: string, page: number): Promise<GitCommit[]>
+  async getFileTree(orgSlug: string, repoName: string, branch: string, path: string): Promise<FileTreeEntry[]>
+  async getFileContent(orgSlug: string, repoName: string, branch: string, filePath: string): Promise<string>
 
   // Webhooks — register Devora as webhook receiver for push/PR events
-  async registerWebhook(
-    orgSlug: string,
-    repoName: string,
-    webhookUrl: string
-  ): Promise<void>
+  async registerWebhook(orgSlug: string, repoName: string, webhookUrl: string): Promise<void>
 }
 ```
 
@@ -2759,7 +2459,6 @@ export class GiteaService {
 - [ ] ### TASK 4-04 — Project Service (CRUD + Gitea sync)
 
 **`src/services/project.service.ts`:**
-
 ```typescript
 export class ProjectService {
   async create(dto: CreateProjectDto, createdBy: string): Promise<Project>
@@ -2780,7 +2479,6 @@ export class ProjectService {
 ```
 
 **Project routes (`src/routes/projects.ts`):**
-
 ```
 POST   /projects                     → create project
 GET    /projects                     → list org projects
@@ -2798,36 +2496,24 @@ POST   /gitea-webhook                → receive Gitea push/PR webhooks
 - [ ] ### TASK 4-05 — Issue Service & Routes
 
 **`src/services/issue.service.ts`:**
-
 ```typescript
 export class IssueService {
   async create(dto: CreateIssueDto, createdBy: string): Promise<Issue>
   // Auto-assigns sequential number per project
   // Publishes PROJECT_ISSUE_CREATED
 
-  async update(
-    issueId: string,
-    dto: UpdateIssueDto,
-    updatedBy: string
-  ): Promise<Issue>
+  async update(issueId: string, dto: UpdateIssueDto, updatedBy: string): Promise<Issue>
   // Publishes PROJECT_ISSUE_UPDATED
 
   async close(issueId: string, closedBy: string): Promise<Issue>
   // Sets status = 'closed', closedAt, closedBy
   // Publishes PROJECT_ISSUE_CLOSED
 
-  async list(
-    projectId: string,
-    filters: IssueFilters
-  ): Promise<PaginatedResult<Issue>>
+  async list(projectId: string, filters: IssueFilters): Promise<PaginatedResult<Issue>>
   // Filters: status, assignee, label, milestone, type, priority, sprint
 
   async get(issueId: string): Promise<Issue>
-  async addComment(
-    issueId: string,
-    body: string,
-    authorId: string
-  ): Promise<IssueComment>
+  async addComment(issueId: string, body: string, authorId: string): Promise<IssueComment>
   async linkTopr(issueId: string, prId: string): Promise<void>
   async bulkUpdate(issueIds: string[], dto: BulkUpdateDto): Promise<void>
   // Used by kanban drag-and-drop
@@ -2835,7 +2521,6 @@ export class IssueService {
 ```
 
 **Issue routes:**
-
 ```
 POST   /projects/:id/issues          → create issue
 GET    /projects/:id/issues          → list with filters + pagination
@@ -2852,7 +2537,6 @@ POST   /projects/:id/issues/bulk     → bulk update (kanban moves)
 - [ ] ### TASK 4-06 — Milestone & Sprint Service
 
 **`src/services/sprint.service.ts`:**
-
 ```typescript
 // Sprints are time-boxed containers for issues
 export class SprintService {
@@ -2867,30 +2551,23 @@ export class SprintService {
 ```
 
 **Sprint DB schema addition (`packages/db/src/schema/project.ts`):**
-
 ```typescript
 export const sprints = pgTable('sprints', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
-    .references(() => projects.id)
-    .notNull(),
-  name: text('name').notNull(),
-  goal: text('goal'),
-  status: text('status').default('planning').notNull(), // planning|active|completed
-  startDate: date('start_date'),
-  endDate: date('end_date'),
-  createdBy: uuid('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  projectId:   uuid('project_id').references(() => projects.id).notNull(),
+  name:        text('name').notNull(),
+  goal:        text('goal'),
+  status:      text('status').default('planning').notNull(), // planning|active|completed
+  startDate:   date('start_date'),
+  endDate:     date('end_date'),
+  createdBy:   uuid('created_by').notNull(),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const sprintIssues = pgTable('sprint_issues', {
-  sprintId: uuid('sprint_id')
-    .references(() => sprints.id)
-    .notNull(),
-  issueId: uuid('issue_id')
-    .references(() => issues.id)
-    .notNull(),
-  addedAt: timestamp('added_at').defaultNow().notNull(),
+  sprintId:  uuid('sprint_id').references(() => sprints.id).notNull(),
+  issueId:   uuid('issue_id').references(() => issues.id).notNull(),
+  addedAt:   timestamp('added_at').defaultNow().notNull(),
 })
 ```
 
@@ -2899,7 +2576,6 @@ export const sprintIssues = pgTable('sprint_issues', {
 - [ ] ### TASK 4-07 — Portal Project Management UI
 
 **Files:**
-
 ```
 apps/portal/src/pages/projects/
 ├── ProjectsPage.tsx         ← org project list
@@ -2917,7 +2593,6 @@ apps/portal/src/pages/projects/
 ```
 
 **`BoardPage.tsx` — kanban structure:**
-
 ```typescript
 // Columns: Backlog | To Do | In Progress | In Review | Done
 // Each column shows issues filtered by status
@@ -2928,7 +2603,6 @@ apps/portal/src/pages/projects/
 ```
 
 **`IssuesPage.tsx` filters:**
-
 ```typescript
 // URL-based filters (shareable links):
 // ?status=open&assignee=me&priority=high&sprint=current&type=bug
@@ -2940,8 +2614,7 @@ apps/portal/src/pages/projects/
 ---
 
 ### Sprint 4 Acceptance Criteria
-
-Creating a project creates a Gitea repo automatically Project webhook receives Gitea push events Issues can be created, assigned, labelled, and closed Kanban board drag-and-drop updates issue status Sprint can be created, issues added, sprint started/completed Milestones show progress percentage based on closed issues Project activity feed shows recent commits + issue changes
+ Creating a project creates a Gitea repo automatically Project webhook receives Gitea push events Issues can be created, assigned, labelled, and closed Kanban board drag-and-drop updates issue status Sprint can be created, issues added, sprint started/completed Milestones show progress percentage based on closed issues Project activity feed shows recent commits + issue changes
 
 ---
 
@@ -2959,7 +2632,6 @@ Creating a project creates a Gitea repo automatically Project webhook receives G
 **Add to `apps/project-service/src/services/`:**
 
 **`pr.service.ts`:**
-
 ```typescript
 export class PrService {
   async create(dto: CreatePrDto, authorId: string): Promise<PullRequest>
@@ -2973,61 +2645,44 @@ export class PrService {
   // Creates review_requests records
   // Publishes CHAT_MENTION for each reviewer (triggers notification)
 
-  async submitReview(
-    prId: string,
-    dto: ReviewDto,
-    reviewerId: string
-  ): Promise<Review>
+  async submitReview(prId: string, dto: ReviewDto, reviewerId: string): Promise<Review>
   // Review types: 'approve' | 'request_changes' | 'comment'
   // If approved and branch protection satisfied → unlock merge button
 
-  async merge(
-    prId: string,
-    mergedBy: string,
-    strategy: 'merge' | 'squash' | 'rebase'
-  ): Promise<void>
+  async merge(prId: string, mergedBy: string, strategy: 'merge' | 'squash' | 'rebase'): Promise<void>
   // 1. Call Gitea merge API
   // 2. Update DB: status = 'merged', mergedBy, mergedAt
   // 3. Auto-close linked issues
   // 4. Publish PROJECT_PR_MERGED
   // 5. If pipeline auto-deploy configured → trigger deploy
 
-  async addComment(
-    prId: string,
-    dto: PrCommentDto,
-    authorId: string
-  ): Promise<PrComment>
+  async addComment(prId: string, dto: PrCommentDto, authorId: string): Promise<PrComment>
   async getDiff(prId: string): Promise<DiffResult>
   // Fetches diff from Gitea API
 }
 ```
 
 **Add DB schemas (`packages/db/src/schema/project.ts`):**
-
 ```typescript
 export const prReviews = pgTable('pr_reviews', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  prId: uuid('pr_id')
-    .references(() => pullRequests.id)
-    .notNull(),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  prId:       uuid('pr_id').references(() => pullRequests.id).notNull(),
   reviewerId: uuid('reviewer_id').notNull(),
-  type: text('type').notNull(), // approve | request_changes | comment
-  body: text('body'),
-  submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+  type:       text('type').notNull(),   // approve | request_changes | comment
+  body:       text('body'),
+  submittedAt:timestamp('submitted_at').defaultNow().notNull(),
 })
 
 export const prComments = pgTable('pr_comments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  prId: uuid('pr_id')
-    .references(() => pullRequests.id)
-    .notNull(),
-  authorId: uuid('author_id').notNull(),
-  body: text('body').notNull(),
-  filePath: text('file_path'),
+  id:         uuid('id').primaryKey().defaultRandom(),
+  prId:       uuid('pr_id').references(() => pullRequests.id).notNull(),
+  authorId:   uuid('author_id').notNull(),
+  body:       text('body').notNull(),
+  filePath:   text('file_path'),
   lineNumber: integer('line_number'),
-  commitSha: text('commit_sha'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  editedAt: timestamp('edited_at'),
+  commitSha:  text('commit_sha'),
+  createdAt:  timestamp('created_at').defaultNow().notNull(),
+  editedAt:   timestamp('edited_at'),
 })
 ```
 
@@ -3038,7 +2693,6 @@ export const prComments = pgTable('pr_comments', {
 **Add to `apps/project-service/src/routes/`:**
 
 **`prs.ts`:**
-
 ```
 POST   /projects/:id/prs                    → create PR
 GET    /projects/:id/prs                    → list PRs (filters: status, author, reviewer)
@@ -3059,7 +2713,6 @@ POST   /projects/:id/prs/:num/reviewers     → request reviewers
 - [ ] ### TASK 5-03 — Portal PR UI
 
 **Files:**
-
 ```
 apps/portal/src/pages/projects/[projectId]/prs/
 ├── PrsPage.tsx           ← PR list with filters
@@ -3072,7 +2725,6 @@ apps/portal/src/pages/projects/[projectId]/prs/
 ```
 
 **`DiffViewer.tsx` requirements:**
-
 ```typescript
 // Use 'react-diff-viewer-continued' or custom implementation
 // Features:
@@ -3091,13 +2743,10 @@ apps/portal/src/pages/projects/[projectId]/prs/
 **Add to `apps/project-service/src/services/`:**
 
 **`pipeline.service.ts`:**
-
 ```typescript
 export class PipelineService {
   // Parse and validate pipeline YAML definition
-  async validateDefinition(
-    yaml: string
-  ): Promise<ParsedPipeline | ValidationErrors>
+  async validateDefinition(yaml: string): Promise<ParsedPipeline | ValidationErrors>
 
   // Create pipeline definition for a project
   async create(projectId: string, dto: CreatePipelineDto): Promise<Pipeline>
@@ -3116,11 +2765,7 @@ export class PipelineService {
   async getRun(runId: string): Promise<PipelineRunDetail>
 
   // Called by runner agent when job starts/finishes
-  async updateJobStatus(
-    jobId: string,
-    status: string,
-    exitCode?: number
-  ): Promise<void>
+  async updateJobStatus(jobId: string, status: string, exitCode?: number): Promise<void>
 }
 ```
 
@@ -3142,7 +2787,7 @@ class RunnerAgent {
 
   async handleRun(data: PipelineRunQueued) {
     const run = await pipelineService.getRun(data.runId)
-    const jobs = run.jobs.filter((j) => j.status === 'pending')
+    const jobs = run.jobs.filter(j => j.status === 'pending')
 
     for (const job of jobs) {
       await this.executeJob(run, job)
@@ -3173,11 +2818,7 @@ class RunnerAgent {
     await logStream.close()
   }
 
-  async runStep(
-    step: PipelineStep,
-    run: PipelineRunDetail,
-    logs: LokiLogStream
-  ) {
+  async runStep(step: PipelineStep, run: PipelineRunDetail, logs: LokiLogStream) {
     // Each step runs in a Docker container
     // Image specified in step or defaults to ubuntu:22.04
     // Mounts: source code read-write, no host network access
@@ -3189,7 +2830,7 @@ class RunnerAgent {
       Image: step.image ?? 'ubuntu:22.04',
       Cmd: ['/bin/sh', '-c', step.run],
       WorkingDir: '/workspace',
-      NetworkMode: 'none', // no network unless step.network = true
+      NetworkMode: 'none',   // no network unless step.network = true
       HostConfig: {
         Binds: [`/tmp/build/${run.id}:/workspace`],
         Memory: 512 * 1024 * 1024,
@@ -3200,11 +2841,7 @@ class RunnerAgent {
 
     await container.start()
     // Stream logs to Loki in real-time
-    const stream = await container.logs({
-      follow: true,
-      stdout: true,
-      stderr: true,
-    })
+    const stream = await container.logs({ follow: true, stdout: true, stderr: true })
     stream.on('data', (chunk) => logs.write(chunk.toString()))
 
     const result = await container.wait()
@@ -3219,7 +2856,6 @@ class RunnerAgent {
 - [ ] ### TASK 5-06 — Pipeline YAML Format
 
 **Supported pipeline YAML (`devora-pipeline.yml`):**
-
 ```yaml
 name: Build and Test
 on:
@@ -3231,7 +2867,7 @@ on:
 jobs:
   test:
     name: Run Tests
-    runs-on: devora-runner # uses platform runner pool
+    runs-on: devora-runner     # uses platform runner pool
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -3252,7 +2888,7 @@ jobs:
 
   build:
     name: Build Docker Image
-    needs: [test] # depends on test job passing
+    needs: [test]             # depends on test job passing
     runs-on: devora-runner
     steps:
       - uses: devora/checkout@v1
@@ -3262,7 +2898,7 @@ jobs:
         with:
           dockerfile: Dockerfile
           tag: ${{ devora.sha }}
-          push: true # push to Harbor registry
+          push: true            # push to Harbor registry
 
       - name: Scan for vulnerabilities
         uses: devora/trivy-scan@v1
@@ -3275,7 +2911,6 @@ jobs:
 - [ ] ### TASK 5-07 — Pipeline Log Streaming (Portal)
 
 **Files:**
-
 ```
 apps/portal/src/pages/projects/[projectId]/pipelines/
 ├── PipelinesPage.tsx      ← list of runs
@@ -3285,7 +2920,6 @@ apps/portal/src/pages/projects/[projectId]/pipelines/
 ```
 
 **`JobLogs.tsx` — real-time log streaming:**
-
 ```typescript
 // Uses SSE (Server-Sent Events) to stream logs from Loki
 // Endpoint: GET /api/projects/pipelines/runs/:runId/jobs/:jobId/logs
@@ -3303,7 +2937,6 @@ apps/portal/src/pages/projects/[projectId]/pipelines/
 ### Task 5-08 — Gitea Webhook Handler
 
 **Add to `apps/project-service/src/routes/projects.ts`:**
-
 ```typescript
 // POST /gitea-webhook
 // Receives push and pull_request events from Gitea
@@ -3316,10 +2949,7 @@ async function handleGiteaWebhook(request, reply) {
   if (event === 'push') {
     // Trigger pipelines matching push trigger + branch
     const project = await projectService.getByGiteaRepoId(body.repository.id)
-    const matchingPipelines = await pipelineService.getMatchingPush(
-      project.id,
-      body.ref
-    )
+    const matchingPipelines = await pipelineService.getMatchingPush(project.id, body.ref)
     for (const pipeline of matchingPipelines) {
       await pipelineService.trigger(pipeline.id, {
         triggerType: 'push',
@@ -3342,11 +2972,9 @@ async function handleGiteaWebhook(request, reply) {
 ---
 
 ### Sprint 5 Acceptance Criteria
-
-Creating a PR stores it in DB and links to Gitea PR Diff viewer renders file changes with syntax highlighting Inline comments can be added on specific diff lines Approving a PR enables the merge button (if branch protection satisfied) Merging a PR auto-closes linked issues Push to main triggers matching pipeline automatically Pipeline logs stream in real-time to portal while running Failed job stops subsequent dependent jobs Docker vulnerability scan blocks deployment on CRITICAL CVEs Pipeline run history visible per project
+ Creating a PR stores it in DB and links to Gitea PR Diff viewer renders file changes with syntax highlighting Inline comments can be added on specific diff lines Approving a PR enables the merge button (if branch protection satisfied) Merging a PR auto-closes linked issues Push to main triggers matching pipeline automatically Pipeline logs stream in real-time to portal while running Failed job stops subsequent dependent jobs Docker vulnerability scan blocks deployment on CRITICAL CVEs Pipeline run history visible per project
 
 ---
-
 - [ ] ## SPRINT 6 — Rust Deployment Engine
 
 **Duration:** 3 weeks (most complex sprint)
@@ -3404,7 +3032,6 @@ core/deploy-engine/
 ```
 
 **`Cargo.toml` dependencies:**
-
 ```toml
 [dependencies]
 axum            = { version = "0.7", features = ["ws"] }
@@ -3432,7 +3059,6 @@ chrono          = { version = "0.4", features = ["serde"] }
 - [ ] ### TASK 6-02 — Provider Trait
 
 **`src/providers/trait.rs`:**
-
 ```rust
 use async_trait::async_trait;
 use crate::spec::parser::DeploySpec;
@@ -3472,7 +3098,6 @@ pub trait Provider: Send + Sync {
 - [ ] ### TASK 6-03 — Deployment Executor
 
 **`src/engine/executor.rs` — main orchestration flow:**
-
 ```rust
 pub struct DeploymentExecutor {
     db: Arc<DbClient>,
@@ -3551,7 +3176,6 @@ impl DeploymentExecutor {
 - [ ] ### TASK 6-04 — Self-Hosted K3s Provider
 
 **`src/providers/self_hosted/k3s.rs`:**
-
 ```rust
 // Uses kube-rs to interact with K3s API server
 // Generates Kubernetes Deployment + Service + Ingress manifests
@@ -3613,7 +3237,6 @@ impl Provider for K3sProvider {
 - [ ] ### TASK 6-05 — Health Check & Auto-Rollback
 
 **`src/engine/health.rs`:**
-
 ```rust
 pub struct HealthChecker;
 
@@ -3660,7 +3283,6 @@ impl HealthChecker {
 - [ ] ### TASK 6-06 — Deploy Service (Node.js wrapper)
 
 **Add `apps/deploy-service/` — thin Node.js service that:**
-
 - Exposes REST API to portal and gateway
 - Calls Rust deploy-engine via HTTP
 - Handles approval state in PostgreSQL
@@ -3679,7 +3301,6 @@ apps/deploy-service/
 ```
 
 **`src/services/engine.client.ts`:**
-
 ```typescript
 // HTTP client wrapping the Rust deploy-engine
 export class EngineClient {
@@ -3696,7 +3317,6 @@ export class EngineClient {
 - [ ] ### TASK 6-07 — Portal Deployment UI
 
 **Files:**
-
 ```
 apps/portal/src/pages/deploy/
 ├── DeployPage.tsx          ← org-level deployment overview
@@ -3711,7 +3331,6 @@ apps/portal/src/pages/deploy/
 ```
 
 **`DeploymentPage.tsx` — step timeline:**
-
 ```typescript
 // Visual timeline showing 5 deployment phases:
 // [validate] → [build] → [scan] → [deploy] → [verify]
@@ -3724,8 +3343,7 @@ apps/portal/src/pages/deploy/
 ---
 
 ### Sprint 6 Acceptance Criteria
-
-`POST /api/deploy/deployments` triggers Rust engine All 5 phases execute in sequence, status visible in portal Self-hosted target creates K8s Deployment + Service + Ingress Production deploy pauses for approval, resumes after approval Health check failure triggers automatic rollback Rollback restores previous working version CRITICAL CVE in image blocks deployment with clear error Deployment events post cards to project chat channel
+ `POST /api/deploy/deployments` triggers Rust engine All 5 phases execute in sequence, status visible in portal Self-hosted target creates K8s Deployment + Service + Ingress Production deploy pauses for approval, resumes after approval Health check failure triggers automatic rollback Rollback restores previous working version CRITICAL CVE in image blocks deployment with clear error Deployment events post cards to project chat channel
 
 ---
 
@@ -3741,7 +3359,6 @@ apps/portal/src/pages/deploy/
 - [ ] ### TASK 7-01 — Bootstrap `apps/monitor-service`
 
 **Files:**
-
 ```
 apps/monitor-service/
 ├── package.json
@@ -3773,7 +3390,6 @@ apps/monitor-service/
 - [ ] ### TASK 7-02 — ClickHouse Activity Recorder
 
 **`src/subscribers/activity-recorder.ts`:**
-
 ```typescript
 // Subscribes to ALL relevant NATS subjects
 // Writes every event as a row to ClickHouse activity_events table
@@ -3798,20 +3414,19 @@ const activitySubjects = [
 for (const subject of activitySubjects) {
   subscribe(nc, subject, async (data: any) => {
     await clickhouse.insert('activity_events', {
-      id: randomUUID(),
-      org_id: data.orgId,
-      user_id: data.userId ?? data.triggerActor ?? data.authorId,
-      project_id: data.projectId,
-      event_type: subject,
-      metadata: JSON.stringify(data),
-      created_at: new Date(),
+      id:           randomUUID(),
+      org_id:       data.orgId,
+      user_id:      data.userId ?? data.triggerActor ?? data.authorId,
+      project_id:   data.projectId,
+      event_type:   subject,
+      metadata:     JSON.stringify(data),
+      created_at:   new Date(),
     })
   })
 }
 ```
 
 **ClickHouse table DDL (run on first install):**
-
 ```sql
 CREATE TABLE activity_events (
     id           UUID,
@@ -3843,7 +3458,6 @@ CREATE TABLE resource_snapshots (
 - [ ] ### TASK 7-03 — Monitor Routes (Role-Gated)
 
 **`src/routes/manager.ts` — project manager view:**
-
 ```
 GET /manager/team                → team activity summary (last 30 days)
     Returns per-user:
@@ -3859,7 +3473,6 @@ GET /manager/deployments        → deployment frequency + MTTR
 ```
 
 **`src/routes/superadmin.ts` — platform view:**
-
 ```
 GET /superadmin/cluster          → K8s node metrics (CPU/RAM/disk per node)
 GET /superadmin/orgs             → per-org resource usage + user counts
@@ -3874,7 +3487,6 @@ GET /superadmin/audit            → recent audit log events
 **Add to `apps/sandbox-service/src/services/`:**
 
 **`metrics-collector.ts`:**
-
 ```typescript
 // Runs every 30 seconds
 // Queries K8s metrics-server for each running sandbox pod
@@ -3884,21 +3496,17 @@ async function collectSandboxMetrics() {
   const runningSandboxes = await workspaceService.listRunning()
 
   for (const sandbox of runningSandboxes) {
-    const metrics = await k8sMetrics.getPodMetrics(
-      sandbox.podName,
-      'devora-sandboxes'
-    )
+    const metrics = await k8sMetrics.getPodMetrics(sandbox.podName, 'devora-sandboxes')
 
-    const cpuPct =
-      (parseFloat(metrics.containers[0].usage.cpu) / sandbox.cpuLimit) * 100
-    const memMb = parseFloat(metrics.containers[0].usage.memory) / 1024 / 1024
+    const cpuPct = parseFloat(metrics.containers[0].usage.cpu) / sandbox.cpuLimit * 100
+    const memMb  = parseFloat(metrics.containers[0].usage.memory) / 1024 / 1024
 
     await clickhouse.insert('resource_snapshots', {
-      org_id: sandbox.orgId,
-      user_id: sandbox.userId,
-      sandbox_id: sandbox.id,
-      cpu_pct: cpuPct,
-      mem_mb: memMb,
+      org_id:      sandbox.orgId,
+      user_id:     sandbox.userId,
+      sandbox_id:  sandbox.id,
+      cpu_pct:     cpuPct,
+      mem_mb:      memMb,
       snapshot_at: new Date(),
     })
 
@@ -3906,10 +3514,10 @@ async function collectSandboxMetrics() {
     if (cpuPct > 90 || memMb > sandbox.memoryLimitMb * 0.9) {
       publish(nc, Subjects.SANDBOX_RESOURCE_SPIKE, {
         workspaceId: sandbox.id,
-        userId: sandbox.userId,
-        orgId: sandbox.orgId,
-        cpu: cpuPct,
-        memory: memMb,
+        userId:      sandbox.userId,
+        orgId:       sandbox.orgId,
+        cpu:         cpuPct,
+        memory:      memMb,
       })
     }
   }
@@ -3923,7 +3531,6 @@ setInterval(collectSandboxMetrics, 30_000)
 - [ ] ### TASK 7-05 — Portal Admin Dashboards
 
 **Files:**
-
 ```
 apps/portal/src/pages/admin/
 ├── AdminLayout.tsx             ← admin-only route guard
@@ -3937,7 +3544,6 @@ apps/portal/src/pages/admin/
 ```
 
 **`TeamPage.tsx` — manager dashboard widgets:**
-
 ```typescript
 // Developer activity cards (per team member):
 //   - Commits this week (sparkline chart)
@@ -3952,7 +3558,6 @@ apps/portal/src/pages/admin/
 ```
 
 **`ClusterPage.tsx` — super admin cluster view:**
-
 ```typescript
 // Node cards grid: one card per K8s node
 //   - Node name + role label
@@ -3969,8 +3574,7 @@ apps/portal/src/pages/admin/
 ---
 
 ### Sprint 7 Acceptance Criteria
-
-Every NATS event is written to ClickHouse activity_events Manager dashboard shows per-developer commit/PR/build counts Sprint burndown chart renders with correct data Super admin cluster page shows all K8s nodes with real metrics Resource spike detection fires NATS event and creates notification Audit log shows all auth + deploy + role events Role assignment via portal assigns correct DB records + takes effect
+ Every NATS event is written to ClickHouse activity_events Manager dashboard shows per-developer commit/PR/build counts Sprint burndown chart renders with correct data Super admin cluster page shows all K8s nodes with real metrics Resource spike detection fires NATS event and creates notification Audit log shows all auth + deploy + role events Role assignment via portal assigns correct DB records + takes effect
 
 ---
 
@@ -4032,7 +3636,6 @@ core/installer/
 ```
 
 **`Cargo.toml` dependencies:**
-
 ```toml
 [dependencies]
 clap           = { version = "4", features = ["derive"] }
@@ -4056,7 +3659,6 @@ rand           = "0.8"
 - [ ] ### TASK 8-02 — Hardware Detection
 
 **`src/detect/hardware.rs`:**
-
 ```rust
 use sysinfo::{System, Disks, Networks};
 
@@ -4122,7 +3724,6 @@ fn recommend_profile(cores: u32, ram_gb: f64) -> InstallProfile {
 - [ ] ### TASK 8-03 — Interactive Wizard
 
 **`src/wizard/questions.rs`:**
-
 ```rust
 use dialoguer::{Select, Input, Confirm, Password};
 
@@ -4184,7 +3785,6 @@ pub fn run_wizard(hardware: &HardwareProfile) -> WizardAnswers {
 - [ ] ### TASK 8-04 — K3s Installation
 
 **`src/setup/k3s.rs`:**
-
 ```rust
 pub async fn install(config: &PlatformConfig) -> anyhow::Result<()> {
     let arch = std::env::consts::ARCH;
@@ -4240,7 +3840,6 @@ WantedBy=multi-user.target
 - [ ] ### TASK 8-05 — Manifest Embedding (build.rs)
 
 **`build.rs`:**
-
 ```rust
 // Embeds all K3s manifests into the binary at compile time
 // This enables air-gapped installs — no internet needed after download
@@ -4264,7 +3863,6 @@ fn main() {
 ```
 
 **`src/deploy/manifests.rs`:**
-
 ```rust
 // Manifests embedded at compile time — zero runtime file I/O
 const POSTGRES_MANIFEST:      &str = include_str!("../../manifests/postgres.yaml");
@@ -4305,7 +3903,6 @@ pub fn get_manifests_for_profile(profile: &InstallProfile) -> Vec<(&'static str,
 - [ ] ### TASK 8-06 — AWS ECS Provider (Rust)
 
 **`src/providers/aws/ecs.rs`:**
-
 ```rust
 // Uses AWS SDK for Rust (aws-sdk-ecs)
 pub struct EcsProvider {
@@ -4356,7 +3953,6 @@ impl Provider for EcsProvider {
 - [ ] ### TASK 8-07 — Integration Test Suite
 
 **File:** `tests/integration/`
-
 ```
 tests/integration/
 ├── setup.ts           ← start all services, seed test data
@@ -4371,7 +3967,6 @@ tests/integration/
 ```
 
 **`tests/integration/setup.ts`:**
-
 ```typescript
 // Starts all services in test mode
 // Uses separate test databases (test_ prefixed)
@@ -4392,7 +3987,6 @@ export async function setupIntegrationTests() {
 ```
 
 **Each integration test file covers end-to-end flows:**
-
 ```typescript
 // deploy.test.ts
 describe('Deployment Flow', () => {
@@ -4409,7 +4003,6 @@ describe('Deployment Flow', () => {
 - [ ] ### TASK 8-08 — devora join Command
 
 **`src/commands/join.rs`:**
-
 ```rust
 pub async fn run(opts: JoinOpts) -> anyhow::Result<()> {
     println!("{}", "Joining Devora cluster...".bold());
@@ -4460,8 +4053,7 @@ WantedBy=multi-user.target
 ---
 
 ### Sprint 8 Acceptance Criteria
-
-`devora init` completes full install on fresh Ubuntu 22.04 (all profiles) All services healthy after install Platform accessible via configured domain with valid SSL `devora join` adds worker node to cluster within 60 seconds `devora backup` creates encrypted archive of all data `devora restore` restores from backup on fresh install Air-gapped install completes with `--bundle` flag AWS ECS deployment executes end-to-end All integration tests pass `devora status` shows health of all services in terminal
+ `devora init` completes full install on fresh Ubuntu 22.04 (all profiles) All services healthy after install Platform accessible via configured domain with valid SSL `devora join` adds worker node to cluster within 60 seconds `devora backup` creates encrypted archive of all data `devora restore` restores from backup on fresh install Air-gapped install completes with `--bundle` flag AWS ECS deployment executes end-to-end All integration tests pass `devora status` shows health of all services in terminal
 
 ---
 
@@ -4519,4 +4111,4 @@ Sprint 1 — Auth + RBAC + Portal skeleton
 
 ---
 
-_End of DEVORA_PLAN.md — Total tasks: ~240 across 8 sprints + pre-sprint_
+*End of DEVORA_PLAN.md — Total tasks: ~240 across 8 sprints + pre-sprint*
