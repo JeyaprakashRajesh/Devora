@@ -1195,7 +1195,7 @@ OLLAMA_DEFAULT_MODEL=deepseek-coder-v2
 
 ## **Pre-Sprint complete.** Proceed to Sprint 1.
 
-- [X] ## SPRINT 1 — Foundation: Auth Service & RBAC Engine
+- [ ] ## SPRINT 1 — Foundation: Auth Service & RBAC Engine
 
 **Duration:** 2 weeks
 **Goal:** Working authentication, session management, full RBAC engine, and portal skeleton with login/register pages. Every subsequent sprint depends on this being complete and tested.
@@ -1639,7 +1639,7 @@ const routes = [
 
 ---
 
-- [X] ### TASK 1-08 — Bootstrap `apps/portal` (React skeleton)
+- [ ] ### TASK 1-08 — Bootstrap `apps/portal` (React skeleton)
 
 **Files to create:**
 
@@ -1759,7 +1759,7 @@ api.interceptors.response.use(
 
 ---
 
-- [X] ### TASK 1-09 — Auth Service Tests
+- [ ] ### TASK 1-09 — Auth Service Tests
 
 **`src/__tests__/auth.test.ts` — test cases:**
 

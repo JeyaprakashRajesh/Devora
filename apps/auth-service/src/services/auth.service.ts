@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { Db, schema } from '@devora/db'
 import { ConflictError, NotFoundError, UnauthorizedError } from '@devora/errors'
@@ -8,9 +8,8 @@ import type { FastifyInstance } from 'fastify'
 import type { JwtPayload } from '../middleware/authenticate.js'
 import { publish, Subjects } from '@devora/nats'
 import type { NatsConnection } from 'nats'
-import { RbacService } from './rbac.service.js'
 
-const { users, organizations, roles, userRoles, sessions } = schema
+const { users, organizations, roles, userRoles } = schema
 
 export interface RegisterDto {
   orgName:  string
@@ -77,7 +76,6 @@ export class AuthService {
   async login(dto: LoginDto, app: FastifyInstance) {
     const [user] = await this.db.select().from(users).where(eq(users.email, dto.email))
     if (!user) throw new UnauthorizedError('Invalid email or password')
-    if (user.status !== 'active') throw new UnauthorizedError('Invalid email or password')
 
     const valid = await this.verifyPassword(dto.password, user.passwordHash ?? '')
     if (!valid) throw new UnauthorizedError('Invalid email or password')
@@ -96,27 +94,18 @@ export class AuthService {
     // Store session in Redis (24h TTL)
     await this.redis.set(`session:${sessionId}`, user.id, 'EX', 60 * 60 * 24)
 
-    await this.db.insert(sessions).values({
-      userId: user.id,
-      tokenHash: sessionId,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    })
-
     return { user: this.safeUser(user), token, sessionId }
   }
 
   async logout(sessionId: string, redis: Redis) {
     if (sessionId) {
       await redis.del(`session:${sessionId}`)
-      await this.db.delete(sessions).where(eq(sessions.tokenHash, sessionId))
     }
   }
 
   async getMe(userId: string, db: Db) {
     const [user] = await db.select().from(users).where(eq(users.id, userId))
     if (!user) throw new NotFoundError('User', userId)
-
-    const [org] = await db.select().from(organizations).where(eq(organizations.id, user.orgId))
 
     // Get roles with permissions
     const grants = await db.select({
@@ -143,8 +132,7 @@ export class AuthService {
     }
 
     return {
-      user: this.safeUser(user),
-      org,
+      ...this.safeUser(user),
       roles:       roleNames,
       permissions: Array.from(permissions),
     }
@@ -224,17 +212,13 @@ export class AuthService {
 
   /** Create super_admin role for the org and assign it to the user */
   private async seedSuperAdmin(orgId: string, userId: string) {
-    const rbac = new RbacService(this.db)
-    await rbac.seedSystemRoles(orgId)
-
-    const [role] = await this.db
-      .select()
-      .from(roles)
-      .where(and(eq(roles.orgId, orgId), eq(roles.name, 'super_admin')))
-
-    if (!role) {
-      throw new Error('super_admin role not found after seeding')
-    }
+    const [role] = await this.db.insert(roles).values({
+      orgId,
+      name:        'super_admin',
+      scope:       'platform',
+      permissions: ['*'],
+      isSystem:    true,
+    }).returning()
 
     await this.db.insert(userRoles).values({
       userId,

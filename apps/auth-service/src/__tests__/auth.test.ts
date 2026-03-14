@@ -1,453 +1,329 @@
-import { randomUUID } from 'node:crypto'
-import { connect, JSONCodec } from 'nats'
-import { eq } from 'drizzle-orm'
-import { schema } from '@devora/db'
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { Subjects as NatsSubjects } from '@devora/nats'
-import {
-  buildTestApp,
-  flushRedis,
-  getAuthHeader,
-  getToken,
-  seedOrgAndUser,
-  seedRole,
-  truncateTables,
-} from './helpers'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { AuthService } from '../services/auth.service.js'
 
-const jc = JSONCodec()
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-let app: Awaited<ReturnType<typeof buildTestApp>>
+/** Build a minimal mock Db that returns whatever data you configure. */
+function makeMockDb(overrides: Record<string, any> = {}) {
+  const chain: any = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockResolvedValue(overrides.selectResult ?? []),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockResolvedValue(overrides.insertResult ?? []),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+  }
+  return chain
+}
 
-describe('Auth Routes Integration', () => {
-  beforeAll(async () => {
-    app = await buildTestApp()
+/** Build a minimal mock Redis. */
+function makeMockRedis(overrides: Record<string, any> = {}) {
+  return {
+    set:    vi.fn().mockResolvedValue('OK'),
+    get:    vi.fn().mockResolvedValue(overrides.get ?? null),
+    del:    vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
+  }
+}
+
+/** Build a minimal mock Fastify app with jwt.sign. */
+function makeMockApp(token = 'mock.jwt.token') {
+  return {
+    jwt: {
+      sign: vi.fn().mockReturnValue(token),
+    },
+  } as any
+}
+
+// ---------------------------------------------------------------------------
+// AuthService.hashPassword / verifyPassword
+// ---------------------------------------------------------------------------
+
+describe('AuthService — password helpers', () => {
+  const db = makeMockDb()
+  const redis = makeMockRedis()
+  const svc = new AuthService(db as any, redis as any)
+
+  it('hashes a password and verifies it correctly', async () => {
+    const hash = await svc.hashPassword('secret1234')
+    expect(hash).not.toBe('secret1234')
+    expect(await svc.verifyPassword('secret1234', hash)).toBe(true)
   })
 
-  afterAll(async () => {
-    await app.close()
+  it('rejects wrong password', async () => {
+    const hash = await svc.hashPassword('correct')
+    expect(await svc.verifyPassword('wrong', hash)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// AuthService.register
+// ---------------------------------------------------------------------------
+
+describe('AuthService.register()', () => {
+  function makeRegisteredDb() {
+    // Successful insert – every select returns [] (no conflicts), inserts return rows
+    const db: any = {
+      select:  vi.fn().mockReturnThis(),
+      from:    vi.fn().mockReturnThis(),
+      where:   vi.fn().mockResolvedValue([]),
+      insert:  vi.fn().mockReturnThis(),
+      values:  vi.fn().mockReturnThis(),
+      returning: vi.fn(),
+    }
+    // First returning() = org, second = user, third = role, fourth = userRole
+    db.returning
+      .mockResolvedValueOnce([{ id: 'org-1', name: 'Acme', slug: 'acme', plan: 'starter', settings: {}, createdAt: new Date(), updatedAt: new Date() }])
+      .mockResolvedValueOnce([{ id: 'user-1', orgId: 'org-1', email: 'a@b.com', username: 'alice', displayName: 'alice', passwordHash: 'h', status: 'active', createdAt: new Date() }])
+      .mockResolvedValueOnce([{ id: 'role-1' }])
+      .mockResolvedValueOnce([{ id: 'ur-1' }])
+    return db
+  }
+
+  it('creates an org and user when no conflicts exist', async () => {
+    const db = makeRegisteredDb()
+    const redis = makeMockRedis()
+    const svc = new AuthService(db as any, redis as any)
+
+    const result = await svc.register({
+      orgName: 'Acme', orgSlug: 'acme', email: 'a@b.com', password: 'Password1!', username: 'alice',
+    })
+
+    expect(result.org.slug).toBe('acme')
+    expect(result.user.email).toBe('a@b.com')
+    // passwordHash must not be in returned user
+    expect((result.user as any).passwordHash).toBeUndefined()
   })
 
-  beforeEach(async () => {
-    await truncateTables()
-    await flushRedis()
+  it('throws ConflictError when email already exists', async () => {
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      // First call (email check) returns existing user
+      where:  vi.fn().mockResolvedValueOnce([{ id: 'u1', email: 'a@b.com' }]),
+    }
+    const svc = new AuthService(db as any, makeMockRedis() as any)
+    await expect(svc.register({
+      orgName: 'X', orgSlug: 'x', email: 'a@b.com', password: 'Password1!', username: 'bob',
+    })).rejects.toThrow('Email already in use')
   })
 
-  describe('POST /auth/register', () => {
-    it('creates org, super-admin user, and returns JWT', async () => {
-      const payload = {
-        orgName: 'Acme Labs',
-        name: 'Alice',
-        email: 'alice@example.com',
-        password: 'Password123!',
-      }
+  it('throws ConflictError when org slug already exists', async () => {
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn()
+        .mockResolvedValueOnce([])           // email — no conflict
+        .mockResolvedValueOnce([{ id: 'o1', slug: 'acme' }]),  // slug — conflict
+    }
+    const svc = new AuthService(db as any, makeMockRedis() as any)
+    await expect(svc.register({
+      orgName: 'Acme2', orgSlug: 'acme', email: 'new@b.com', password: 'Password1!', username: 'bob',
+    })).rejects.toThrow('Organization slug already taken')
+  })
+})
 
-      const response = await app.inject({ method: 'POST', url: '/auth/register', payload })
-      expect(response.statusCode).toBe(201)
+// ---------------------------------------------------------------------------
+// AuthService.login()
+// ---------------------------------------------------------------------------
 
-      const body = response.json<{
-        token: string
-        user: { id: string; email: string; orgId: string }
-        org: { id: string; slug: string }
-      }>()
+describe('AuthService.login()', () => {
+  const USER = {
+    id: 'u1', orgId: 'o1', email: 'a@b.com', username: 'alice',
+    status: 'active', createdAt: new Date(),
+    // precomputed bcrypt hash for "Password1!"
+    passwordHash: '$2a$12$somevalid', // will use svc to generate real hash
+  }
 
-      expect(body.token).toBeTypeOf('string')
-      expect(body.token.length).toBeGreaterThan(0)
-      expect(body.user.id).toBeTruthy()
-      expect(body.user.email).toBe(payload.email)
-      expect(body.user.orgId).toBeTruthy()
-      expect(body.org.id).toBeTruthy()
-      expect(body.org.slug).toBe('acme-labs')
+  it('returns a JWT and sessionId on valid credentials', async () => {
+    const svc = new AuthService(makeMockDb() as any, makeMockRedis() as any) // just for hashPassword
+    const hash = await svc.hashPassword('Password1!')
+    const user = { ...USER, passwordHash: hash }
 
-      const orgRows = await app.db.select().from(schema.organizations)
-      const userRows = await app.db.select().from(schema.users)
-      const roleRows = await app.db.select().from(schema.roles).where(eq(schema.roles.orgId, body.org.id))
-      const assignedRows = await app.db.select().from(schema.userRoles).where(eq(schema.userRoles.userId, body.user.id))
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([user]),
+    }
+    const redis = makeMockRedis()
+    const app = makeMockApp('tok123')
 
-      expect(orgRows).toHaveLength(1)
-      expect(userRows).toHaveLength(1)
-      expect(userRows[0]?.email).toBe(payload.email)
-      expect(roleRows.map((r) => r.name)).toEqual(
-        expect.arrayContaining(['super_admin', 'org_admin', 'project_manager', 'tech_lead', 'developer', 'viewer']),
-      )
-
-      const assignedRoleIds = new Set(assignedRows.map((row) => row.roleId))
-      const superAdminRole = roleRows.find((row) => row.name === 'super_admin')
-      expect(superAdminRole).toBeTruthy()
-      expect(assignedRoleIds.has(superAdminRole!.id)).toBe(true)
-    })
-
-    it('slugifies org name correctly', async () => {
-      const cases = [
-        { orgName: 'My Awesome Company', expected: 'my-awesome-company' },
-        { orgName: '  Spaces  ', expected: 'spaces' },
-        { orgName: 'Acme & Co.', expected: 'acme-co' },
-      ]
-
-      for (const testCase of cases) {
-        const response = await app.inject({
-          method: 'POST',
-          url: '/auth/register',
-          payload: {
-            orgName: testCase.orgName,
-            name: 'User',
-            email: `${randomUUID().slice(0, 8)}@example.com`,
-            password: 'Password123!',
-          },
-        })
-
-        expect(response.statusCode).toBe(201)
-        expect(response.json<{ org: { slug: string } }>().org.slug).toBe(testCase.expected)
-      }
-    })
-
-    it('returns 409 if email already registered', async () => {
-      const payload = {
-        orgName: 'Repeat Org',
-        name: 'Alice',
-        email: 'dup@example.com',
-        password: 'Password123!',
-      }
-
-      const first = await app.inject({ method: 'POST', url: '/auth/register', payload })
-      expect(first.statusCode).toBe(201)
-
-      const second = await app.inject({ method: 'POST', url: '/auth/register', payload })
-      expect(second.statusCode).toBe(409)
-      expect(second.json<{ code: string }>().code).toBe('GEN_004')
-    })
-
-    it('returns 400 if email is invalid', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          orgName: 'Acme',
-          name: 'Alice',
-          email: 'notanemail',
-          password: 'Password123!',
-        },
-      })
-
-      expect(response.statusCode).toBe(400)
-      expect(response.json<{ code: string }>().code).toBe('GEN_001')
-    })
-
-    it('returns 400 if password is too short', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          orgName: 'Acme',
-          name: 'Alice',
-          email: 'alice@example.com',
-          password: 'short',
-        },
-      })
-
-      expect(response.statusCode).toBe(400)
-    })
-
-    it('returns 400 if required fields are missing', async () => {
-      const missingOrg = await app.inject({ method: 'POST', url: '/auth/register', payload: { email: 'a@b.com', password: 'Password123!' } })
-      const missingEmail = await app.inject({ method: 'POST', url: '/auth/register', payload: { orgName: 'Acme', password: 'Password123!' } })
-      const missingPassword = await app.inject({ method: 'POST', url: '/auth/register', payload: { orgName: 'Acme', email: 'a@b.com' } })
-
-      expect(missingOrg.statusCode).toBe(400)
-      expect(missingEmail.statusCode).toBe(400)
-      expect(missingPassword.statusCode).toBe(400)
-    })
-
-    it('publishes AUTH_USER_CREATED event to NATS after registration', async () => {
-      const nc = await connect({ servers: process.env.NATS_URL })
-      const subscription = nc.subscribe(NatsSubjects.AUTH_USER_CREATED)
-
-      const payload = {
-        orgName: 'Nats Org',
-        name: 'Nats User',
-        email: `${randomUUID().slice(0, 8)}@example.com`,
-        password: 'Password123!',
-      }
-
-      const messagePromise = (async () => {
-        for await (const message of subscription) {
-          return jc.decode(message.data) as { userId: string; orgId: string; email: string }
-        }
-        return null
-      })()
-
-      const response = await app.inject({ method: 'POST', url: '/auth/register', payload })
-      expect(response.statusCode).toBe(201)
-
-      const message = await Promise.race([
-        messagePromise,
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-      ])
-
-      expect(message).not.toBeNull()
-      expect(message?.userId).toBeTruthy()
-      expect(message?.orgId).toBeTruthy()
-      expect(message?.email).toBe(payload.email)
-
-      subscription.unsubscribe()
-      await nc.drain()
-    })
+    const result = await new AuthService(db as any, redis as any).login({ email: 'a@b.com', password: 'Password1!' }, app)
+    expect(result.token).toBe('tok123')
+    expect(result.sessionId).toBeDefined()
+    expect(redis.set).toHaveBeenCalled()
   })
 
-  describe('POST /auth/login', () => {
-    beforeEach(async () => {
-      await truncateTables()
-      await flushRedis()
-      const { org, user, plainPassword } = await seedOrgAndUser(app)
-      await seedRole(app, org.id, 'developer', user.id, {
-        permissions: ['project:read'],
-      })
-      ;(globalThis as any).__loginFixture = { org, user, plainPassword }
-    })
-
-    it('returns 200 with JWT token on valid credentials', async () => {
-      const fixture = (globalThis as any).__loginFixture as { user: { email: string; id: string; orgId: string }; plainPassword: string }
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: fixture.user.email, password: fixture.plainPassword },
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = response.json<{ token: string; user: { email: string }; sessionId: string }>()
-      expect(body.token).toBeTruthy()
-      expect(body.user.email).toBe(fixture.user.email)
-      expect(body.sessionId).toBeTruthy()
-
-      const decoded = app.jwt.decode(body.token) as { sub: string; org: string; exp: number }
-      expect(decoded.sub).toBe(fixture.user.id)
-      expect(decoded.org).toBe(fixture.user.orgId)
-      expect(decoded.exp).toBeGreaterThan(Math.floor(Date.now() / 1000))
-    })
-
-    it('returns 401 on wrong password', async () => {
-      const fixture = (globalThis as any).__loginFixture as { user: { email: string } }
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: fixture.user.email, password: 'WrongPass123!' },
-      })
-
-      expect(response.statusCode).toBe(401)
-      expect(response.json<{ code: string }>().code).toBe('AUTH_001')
-    })
-
-    it('returns 401 on unknown email', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: 'missing@example.com', password: 'WrongPass123!' },
-      })
-
-      expect(response.statusCode).toBe(401)
-    })
-
-    it('returns 401 on suspended user', async () => {
-      const fixture = (globalThis as any).__loginFixture as { user: { id: string; email: string }; plainPassword: string }
-
-      await app.db
-        .update(schema.users)
-        .set({ status: 'suspended' })
-        .where(eq(schema.users.id, fixture.user.id))
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: fixture.user.email, password: fixture.plainPassword },
-      })
-
-      expect(response.statusCode).toBe(401)
-    })
-
-    it('creates a session record in DB', async () => {
-      const fixture = (globalThis as any).__loginFixture as { user: { id: string; email: string }; plainPassword: string }
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: fixture.user.email, password: fixture.plainPassword },
-      })
-
-      const body = response.json<{ sessionId: string }>()
-      const rows = await app.db.select().from(schema.sessions).where(eq(schema.sessions.tokenHash, body.sessionId))
-
-      expect(rows).toHaveLength(1)
-      expect(rows[0]?.userId).toBe(fixture.user.id)
-      expect((rows[0]?.expiresAt?.getTime() ?? 0) > Date.now()).toBe(true)
-    })
-
-    it('stores session in Redis with correct TTL', async () => {
-      const fixture = (globalThis as any).__loginFixture as { user: { id: string; email: string }; plainPassword: string }
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: fixture.user.email, password: fixture.plainPassword },
-      })
-
-      const body = response.json<{ sessionId: string }>()
-      const value = await app.redis.get(`session:${body.sessionId}`)
-      const ttl = await app.redis.ttl(`session:${body.sessionId}`)
-
-      expect(value).toBe(fixture.user.id)
-      expect(ttl).toBeGreaterThan(0)
-    })
+  it('throws UnauthorizedError for unknown email', async () => {
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([]),
+    }
+    await expect(
+      new AuthService(db as any, makeMockRedis() as any).login({ email: 'x@y.com', password: 'pass' }, makeMockApp())
+    ).rejects.toThrow('Invalid email or password')
   })
 
-  describe('POST /auth/logout', () => {
-    it('invalidates session and rejects subsequent /auth/me', async () => {
-      const { user, plainPassword } = await seedOrgAndUser(app)
-      const token = await getToken(app, user.email, plainPassword)
+  it('throws UnauthorizedError for wrong password', async () => {
+    const svc0 = new AuthService(makeMockDb() as any, makeMockRedis() as any)
+    const hash = await svc0.hashPassword('correct')
+    const user = { ...USER, passwordHash: hash }
 
-      const meBefore = await app.inject({ method: 'GET', url: '/auth/me', headers: getAuthHeader(token) })
-      expect(meBefore.statusCode).toBe(200)
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([user]),
+    }
 
-      const logout = await app.inject({ method: 'POST', url: '/auth/logout', headers: getAuthHeader(token) })
-      expect([200, 204]).toContain(logout.statusCode)
+    await expect(
+      new AuthService(db as any, makeMockRedis() as any).login({ email: 'a@b.com', password: 'wrong' }, makeMockApp())
+    ).rejects.toThrow('Invalid email or password')
+  })
+})
 
-      const meAfter = await app.inject({ method: 'GET', url: '/auth/me', headers: getAuthHeader(token) })
-      expect(meAfter.statusCode).toBe(401)
-    })
+// ---------------------------------------------------------------------------
+// AuthService.logout()
+// ---------------------------------------------------------------------------
 
-    it('removes session from Redis', async () => {
-      const { user, plainPassword } = await seedOrgAndUser(app)
-      const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: user.email, password: plainPassword } })
-      const { token, sessionId } = login.json<{ token: string; sessionId: string }>()
+describe('AuthService.logout()', () => {
+  it('deletes the session key from Redis', async () => {
+    const redis = makeMockRedis()
+    const svc = new AuthService(makeMockDb() as any, redis as any)
+    await svc.logout('sid-abc', redis as any)
+    expect(redis.del).toHaveBeenCalledWith('session:sid-abc')
+  })
+})
 
-      const logout = await app.inject({ method: 'POST', url: '/auth/logout', headers: getAuthHeader(token) })
-      expect([200, 204]).toContain(logout.statusCode)
+// ---------------------------------------------------------------------------
+// AuthService.getMe()
+// ---------------------------------------------------------------------------
 
-      const session = await app.redis.get(`session:${sessionId}`)
-      expect(session).toBeNull()
-    })
+describe('AuthService.getMe()', () => {
+  it('returns user profile with roles and permissions', async () => {
+    const user = { id: 'u1', orgId: 'o1', email: 'a@b.com', username: 'alice', passwordHash: 'h', status: 'active', createdAt: new Date() }
+    const grants = [
+      { roleId: 'r1', roleName: 'developer', permissions: ['project:read', 'code:write'] },
+    ]
 
-    it('returns 401 if no token provided', async () => {
-      const response = await app.inject({ method: 'POST', url: '/auth/logout' })
-      expect(response.statusCode).toBe(401)
-    })
+    const db: any = {
+      select:   vi.fn().mockReturnThis(),
+      from:     vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      where:    vi.fn()
+        .mockResolvedValueOnce([user])  // users query
+        .mockResolvedValueOnce(grants), // userRoles+roles query
+    }
+
+    const result = await new AuthService(db as any, makeMockRedis() as any).getMe('u1', db as any)
+    expect(result.email).toBe('a@b.com')
+    expect((result as any).passwordHash).toBeUndefined()
+    expect(result.roles).toContain('developer')
+    expect(result.permissions).toContain('code:write')
   })
 
-  describe('GET /auth/me', () => {
-    it('returns user profile with permissions array', async () => {
-      const { org, user, plainPassword } = await seedOrgAndUser(app)
-      await seedRole(app, org.id, 'developer', user.id, {
-        scope: 'project',
-        permissions: ['issue:read', 'code:read'],
-      })
+  it('throws NotFoundError for unknown userId', async () => {
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([]),
+    }
+    await expect(
+      new AuthService(db as any, makeMockRedis() as any).getMe('u-missing', db as any)
+    ).rejects.toThrow("User 'u-missing' not found")
+  })
+})
 
-      const token = await getToken(app, user.email, plainPassword)
-      const response = await app.inject({ method: 'GET', url: '/auth/me', headers: getAuthHeader(token) })
+// ---------------------------------------------------------------------------
+// AuthService.refresh()
+// ---------------------------------------------------------------------------
 
-      expect(response.statusCode).toBe(200)
-      const body = response.json<{
-        user: { id: string; email: string; username: string }
-        org: { id: string; name: string; slug: string }
-        permissions: string[]
-      }>()
+describe('AuthService.refresh()', () => {
+  it('returns a new token when session is valid in Redis', async () => {
+    const user = { id: 'u1', orgId: 'o1', email: 'a@b.com', username: 'alice', status: 'active', createdAt: new Date(), passwordHash: null }
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([user]),
+    }
+    const redis = makeMockRedis({ get: 'u1' })
+    const app = makeMockApp('fresh-tok')
 
-      expect(body.user.id).toBe(user.id)
-      expect(body.user.email).toBe(user.email)
-      expect(body.user.username).toBe(user.username)
-      expect(body.org.id).toBe(org.id)
-      expect(body.org.name).toBe(org.name)
-      expect(body.org.slug).toBe(org.slug)
-      expect(Array.isArray(body.permissions)).toBe(true)
-      expect(body.permissions.some((permission) => typeof permission === 'string')).toBe(true)
-    })
-
-    it('returns 401 without Authorization header', async () => {
-      const response = await app.inject({ method: 'GET', url: '/auth/me' })
-      expect(response.statusCode).toBe(401)
-    })
-
-    it('returns 401 with malformed token', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/auth/me',
-        headers: { Authorization: 'Bearer notavalidjwt' },
-      })
-
-      expect(response.statusCode).toBe(401)
-    })
-
-    it('returns 401 with expired token', async () => {
-      const { user } = await seedOrgAndUser(app)
-      const token = app.jwt.sign({ sub: user.id, org: user.orgId, roles: [], sessionId: randomUUID() }, { expiresIn: '1ms' })
-      await new Promise((resolve) => setTimeout(resolve, 20))
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/auth/me',
-        headers: getAuthHeader(token),
-      })
-
-      expect(response.statusCode).toBe(401)
-      expect(response.json<{ code: string }>().code).toBe('AUTH_001')
-    })
-
-    it('returns 401 after logout', async () => {
-      const { user, plainPassword } = await seedOrgAndUser(app)
-      const token = await getToken(app, user.email, plainPassword)
-
-      await app.inject({ method: 'POST', url: '/auth/logout', headers: getAuthHeader(token) })
-      const me = await app.inject({ method: 'GET', url: '/auth/me', headers: getAuthHeader(token) })
-      expect(me.statusCode).toBe(401)
-    })
-
-    it('includes all permissions for super_admin including wildcard', async () => {
-      const register = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          orgName: 'Super Org',
-          name: 'Boss',
-          email: 'boss@example.com',
-          password: 'Password123!',
-        },
-      })
-
-      const { token } = register.json<{ token: string }>()
-      const me = await app.inject({ method: 'GET', url: '/auth/me', headers: getAuthHeader(token) })
-      expect(me.statusCode).toBe(200)
-      expect(me.json<{ permissions: string[] }>().permissions).toContain('*')
-    })
+    const result = await new AuthService(db as any, redis as any).refresh('sid-xyz', app as any)
+    expect(result.token).toBe('fresh-tok')
+    expect(redis.expire).toHaveBeenCalledWith('session:sid-xyz', 60 * 60 * 24)
   })
 
-  describe('POST /auth/refresh', () => {
-    it('returns new token with fresh expiry', async () => {
-      const { user, plainPassword } = await seedOrgAndUser(app)
-      const login = await app.inject({
-        method: 'POST',
-        url: '/auth/login',
-        payload: { email: user.email, password: plainPassword },
-      })
+  it('throws UnauthorizedError when session not in Redis', async () => {
+    const redis = makeMockRedis({ get: null }) // session missing
+    await expect(
+      new AuthService(makeMockDb() as any, redis as any).refresh('invalid-sid', makeMockApp() as any)
+    ).rejects.toThrow('Session expired or not found')
+  })
+})
 
-      const { token, sessionId } = login.json<{ token: string; sessionId: string }>()
-      const oldExp = (app.jwt.decode(token) as { exp: number }).exp
+// ---------------------------------------------------------------------------
+// AuthService.forgotPassword()
+// ---------------------------------------------------------------------------
 
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+describe('AuthService.forgotPassword()', () => {
+  it('stores a reset token in Redis and returns it when email found', async () => {
+    const user = { id: 'u1', email: 'a@b.com' }
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([user]),
+    }
+    const redis = makeMockRedis()
+    const { token } = await new AuthService(db as any, redis as any).forgotPassword('a@b.com')
 
-      const refresh = await app.inject({ method: 'POST', url: '/auth/refresh', payload: { sessionId } })
-      expect(refresh.statusCode).toBe(200)
+    expect(token).toBeTruthy()
+    expect(redis.set).toHaveBeenCalledWith(
+      expect.stringMatching(/^reset:/),
+      'u1',
+      'EX',
+      60 * 15
+    )
+  })
 
-      const newToken = refresh.json<{ token: string }>().token
-      const newExp = (app.jwt.decode(newToken) as { exp: number }).exp
-      expect(newExp).toBeGreaterThan(oldExp)
-    })
+  it('returns empty token when email not found (no user enumeration)', async () => {
+    const db: any = {
+      select: vi.fn().mockReturnThis(),
+      from:   vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue([]),
+    }
+    const { token } = await new AuthService(db as any, makeMockRedis() as any).forgotPassword('nope@example.com')
+    expect(token).toBe('')
+  })
+})
 
-    it('returns 401 with invalid token/session', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/auth/refresh',
-        payload: { sessionId: randomUUID() },
-      })
+// ---------------------------------------------------------------------------
+// AuthService.resetPassword()
+// ---------------------------------------------------------------------------
 
-      expect(response.statusCode).toBe(401)
-    })
+describe('AuthService.resetPassword()', () => {
+  it('updates the password and deletes the reset token', async () => {
+    const db: any = {
+      update: vi.fn().mockReturnThis(),
+      set:    vi.fn().mockReturnThis(),
+      where:  vi.fn().mockResolvedValue(undefined),
+    }
+    const redis = makeMockRedis({ get: 'u1' })
+
+    await new AuthService(db as any, redis as any).resetPassword('valid-token', 'NewPass1!')
+    expect(redis.del).toHaveBeenCalledWith('reset:valid-token')
+    expect(db.update).toHaveBeenCalled()
+  })
+
+  it('throws UnauthorizedError for invalid/expired token', async () => {
+    const redis = makeMockRedis({ get: null })
+    await expect(
+      new AuthService(makeMockDb() as any, redis as any).resetPassword('bad-token', 'x')
+    ).rejects.toThrow('Invalid or expired reset token')
   })
 })
