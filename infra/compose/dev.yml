@@ -55,15 +55,6 @@ services:
     ports: ['5437:5432']
     volumes: ['postgres_notify:/var/lib/postgresql/data']
 
-  postgres-monitor:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: devora_monitor
-      POSTGRES_USER: devora
-      POSTGRES_PASSWORD: devora_dev
-    ports: ['5438:5432']
-    volumes: ['postgres_monitor:/var/lib/postgresql/data']
-
   redis:
     image: redis:7-alpine
     ports: ['6379:6379']
@@ -101,7 +92,6 @@ volumes:
   postgres_deploy:
   postgres_sandbox:
   postgres_notify:
-  postgres_monitor:
   redis_data:
   minio_data:
   clickhouse_data:

@@ -3,7 +3,6 @@ import { useRouterState } from '@tanstack/react-router'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { useNotificationCount } from '../../hooks/useNotificationCount'
 import { ThemeToggle } from './ThemeToggle'
 import { useAuthStore } from '../../store/auth.store'
 
@@ -27,8 +26,6 @@ const routeLabelMap: Record<string, string> = {
 export function TopBar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const user = useAuthStore((state) => state.user)
-  const { count } = useNotificationCount()
-  const notificationLabel = count > 99 ? '99+' : String(count)
 
   return (
     <header className="fixed left-0 top-0 z-20 flex h-12 w-full items-center border-b border-border-default bg-bg-surface px-4">
@@ -51,11 +48,9 @@ export function TopBar() {
       <div className="ml-auto flex items-center gap-2">
         <Button variant="ghost" size="sm" className="relative h-8 w-8 p-0" aria-label="Notifications">
           <Bell className="h-4 w-4" />
-          {count > 0 ? (
-            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-accent-amber px-1 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
-              {notificationLabel}
-            </span>
-          ) : null}
+          <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-accent-amber px-1 text-[10px] font-semibold text-text-primary">
+            3
+          </span>
         </Button>
         <ThemeToggle />
         <button type="button" className="rounded p-0.5 hover:bg-bg-subtle" aria-label="User menu">

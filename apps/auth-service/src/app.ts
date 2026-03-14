@@ -6,7 +6,6 @@ import { redisPlugin } from './plugins/redis.js'
 import { natsPlugin } from './plugins/nats.js'
 import { jwtPlugin } from './plugins/jwt.js'
 import { registerRoutes } from './routes/index.js'
-import { registerSandboxSubscribers } from './subscribers/sandbox.subscriber.js'
 
 export async function buildApp() {
   const logger = createLogger('auth-service')
@@ -16,7 +15,6 @@ export async function buildApp() {
   await app.register(redisPlugin)
   await app.register(natsPlugin)
   await app.register(jwtPlugin)
-  registerSandboxSubscribers(app.nc, app.db, app.log as any)
   await registerRoutes(app)
 
   app.setErrorHandler((error, _request, reply) => {

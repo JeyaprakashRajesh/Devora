@@ -12,11 +12,10 @@ import {
   Server,
   Settings,
 } from 'lucide-react'
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { useAuthStore } from '../../store/auth.store'
-import { useWorkspaceStore } from '../../store/workspace.store'
 
 type NavItem = {
   label: string
@@ -70,11 +69,8 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const org = useAuthStore((state) => state.org)
-  const workspaceId = useWorkspaceStore((state) => state.workspaceId)
-  const userDisplayName = user?.name ?? user?.displayName ?? user?.username ?? 'Guest User'
 
   return (
     <aside className="fixed left-0 top-12 flex h-[calc(100vh-48px)] w-[220px] flex-col border-r border-border-default bg-bg-surface">
@@ -89,46 +85,18 @@ export function Sidebar() {
             <p className="mb-2 px-3 text-[11px] uppercase tracking-[0.08em] text-text-muted">{group.label}</p>
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isIdeItem = item.label === 'IDE'
-                const isActive = isIdeItem
-                  ? pathname === '/ide' || pathname.startsWith('/ide/')
-                  : pathname === item.to
+                const isActive = pathname === item.to
                 const Icon = item.icon
-                const itemClassName = `flex h-9 items-center gap-2 rounded px-3 text-sm transition ${
-                  isActive
-                    ? 'border-l-2 border-accent-blue bg-bg-subtle text-text-primary'
-                    : 'border-l-2 border-transparent text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
-                }`
-
-                if (isIdeItem) {
-                  return (
-                    <button
-                      key={`${group.label}-${item.label}`}
-                      type="button"
-                      onClick={() => {
-                        if (workspaceId) {
-                          void navigate({
-                            to: '/ide/$workspaceId',
-                            params: { workspaceId },
-                          })
-                          return
-                        }
-
-                        void navigate({ to: '/ide' })
-                      }}
-                      className={`${itemClassName} w-full`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                }
 
                 return (
                   <Link
                     key={`${group.label}-${item.label}`}
                     to={item.to}
-                    className={itemClassName}
+                    className={`flex h-9 items-center gap-2 rounded px-3 text-sm transition ${
+                      isActive
+                        ? 'border-l-2 border-accent-blue bg-bg-subtle text-text-primary'
+                        : 'border-l-2 border-transparent text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
@@ -141,9 +109,9 @@ export function Sidebar() {
       </nav>
 
       <div className="flex items-center gap-2 border-t border-border-default px-3 py-3">
-        <Avatar name={userDisplayName} size="md" />
+        <Avatar name={user?.name ?? 'Devora User'} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-text-primary">{userDisplayName}</p>
+          <p className="truncate text-xs font-medium text-text-primary">{user?.name ?? 'Guest User'}</p>
           <Badge variant="violet">{user?.role ?? 'Admin'}</Badge>
         </div>
         <button

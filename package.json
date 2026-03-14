@@ -4,27 +4,16 @@
   "packageManager": "npm@10.9.4",
   "workspaces": [
     "apps/*",
-    "apps/sandbox-service/workspace-image/ai-agent",
     "packages/*",
     "core/*"
   ],
   "scripts": {
     "dev": "turbo run dev",
-    "dev:reset": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-reset.ps1",
-    "dev:up": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-up.ps1",
-    "dev:fresh": "npm run dev:reset && npm run dev:up",
     "build": "turbo run build",
-    "test": "vitest run --workspace vitest.workspace.ts",
-    "test:watch": "vitest --workspace vitest.workspace.ts",
-    "test:coverage": "vitest run --workspace vitest.workspace.ts --coverage",
-    "test:sandbox": "vitest run --workspace vitest.workspace.ts --project sandbox-service",
-    "test:notify": "vitest run --workspace vitest.workspace.ts --project notification-service",
-    "test:monitor": "vitest run --workspace vitest.workspace.ts --project monitor-service",
-    "test:agent": "vitest run --workspace vitest.workspace.ts --project ai-agent",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "db:migrate": "turbo run db:migrate",
-    "db:generate": "turbo run db:generate",
-    "build:workspace-image": "docker build -t devora/workspace:latest apps/sandbox-service/workspace-image"
+    "db:generate": "turbo run db:generate"
   },
   "overrides": {
     "react": "18.3.1",

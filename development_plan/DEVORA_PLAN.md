@@ -1813,7 +1813,7 @@ describe('RbacService.can()', () => {
 
 ---
 
-- [X] ### TASK 2-01 — Bootstrap `apps/sandbox-service`
+- [ ] ### TASK 2-01 — Bootstrap `apps/sandbox-service`
 
 **Files:**
 
@@ -1843,7 +1843,7 @@ apps/sandbox-service/
 
 ---
 
-- [X] ### TASK 2-02 — Kubernetes Pod Templates
+- [ ] ### TASK 2-02 — Kubernetes Pod Templates
 
 **`src/k8s/workspace-pod.template.ts`:**
 
@@ -1950,7 +1950,7 @@ export function buildWorkspacePVC(
 
 ---
 
-- [X] ### TASK 2-03 — Workspace Service
+- [ ] ### TASK 2-03 — Workspace Service
 
 **`src/services/workspace.service.ts` — core logic:**
 
@@ -1987,7 +1987,7 @@ export class WorkspaceService {
 
 ---
 
-- [X] ### TASK 2-04 — Workspace Routes
+- [ ] ### TASK 2-04 — Workspace Routes
 
 **`src/routes/workspaces.ts` endpoints:**
 
@@ -2166,8 +2166,7 @@ publish(nc, Subjects.SANDBOX_RESOURCE_SPIKE, {
 ### Sprint 2 Acceptance Criteria
 
 `POST /api/sandbox/workspaces` creates pod in K8s within 30 seconds Second call returns existing running workspace (idempotent) Pod stops but PVC preserved on `POST /stop` Re-starting a stopped workspace reattaches existing PVC Portal IDE page shows loader, then renders code-server iframe Heartbeat keeps workspace alive while IDE is open Idle workspaces (no heartbeat for 30 min) auto-stop Sandbox pods cannot reach each other (network policy verified) AI agent responds to `/complete` within 500ms (small model)
----
-- [ ] ## SPRINT 2 - Tests
+
 ---
 
 - [ ] ## SPRINT 3 — Chat Service & Notification Engine

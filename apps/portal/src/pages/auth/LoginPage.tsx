@@ -14,17 +14,15 @@ type LoginResponse = {
   token: string
   user: {
     id: string
-    name?: string
-    displayName?: string
-    username?: string
+    name: string
     email: string
-    role?: string
+    role: string
   }
-  org?: {
+  org: {
     id: string
     name: string
-  } | null
-  permissions?: string[]
+  }
+  permissions: string[]
 }
 
 type ApiErrorShape = {
@@ -50,13 +48,13 @@ export function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await api.post<LoginResponse>('/api/auth/login', { email, password })
+      const response = await api.post<LoginResponse>('/auth/login', { email, password })
       const payload = response.data
       setAuth({
         token: payload.token,
         user: payload.user,
-        org: payload.org ?? null,
-        permissions: payload.permissions ?? [],
+        org: payload.org,
+        permissions: payload.permissions,
       })
       navigate({ to: '/dashboard' })
     } catch (error: unknown) {

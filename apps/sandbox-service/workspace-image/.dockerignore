@@ -1,6 +1,0 @@
-node_modules
-ai-agent/node_modules
-ai-agent/dist
-*.log
-.env
-.env.*
