@@ -6,8 +6,6 @@ import { ConflictError, NotFoundError, UnauthorizedError } from '@devora/errors'
 import type Redis from 'ioredis'
 import type { FastifyInstance } from 'fastify'
 import type { JwtPayload } from '../middleware/authenticate.js'
-import { publish, Subjects } from '@devora/nats'
-import type { NatsConnection } from 'nats'
 
 const { users, organizations, roles, userRoles } = schema
 
@@ -30,7 +28,7 @@ export class AuthService {
     private readonly redis: Redis
   ) {}
 
-  async register(dto: RegisterDto, nc?: NatsConnection) {
+  async register(dto: RegisterDto) {
     // Check if email already in use
     const [existing] = await this.db.select().from(users).where(eq(users.email, dto.email))
     if (existing) throw new ConflictError('Email already in use')
@@ -58,17 +56,6 @@ export class AuthService {
 
     // Seed system roles and assign super_admin
     await this.seedSuperAdmin(org.id, user.id)
-
-    // Publish NATS event
-    if (nc) {
-      publish(nc, Subjects.AUTH_USER_CREATED, {
-        userId:    user.id,
-        orgId:     org.id,
-        email:     user.email,
-        username:  user.username,
-        createdAt: user.createdAt,
-      })
-    }
 
     return { user: this.safeUser(user), org }
   }

@@ -1,7 +1,5 @@
-import { eq, and, or, isNull } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { Db, schema } from '@devora/db'
-import { publish, Subjects } from '@devora/nats'
-import type { NatsConnection } from 'nats'
 
 const { userRoles, roles } = schema
 
@@ -77,7 +75,6 @@ export const SYSTEM_ROLES = {
 export interface AssignRoleDto {
   userId:       string
   roleId:       string
-  roleName?:    string
   grantedBy:    string
   resourceType?: string
   resourceId?:   string
@@ -146,7 +143,7 @@ export class RbacService {
     return Array.from(permissions)
   }
 
-  async assignRole(dto: AssignRoleDto, nc?: NatsConnection): Promise<void> {
+  async assignRole(dto: AssignRoleDto): Promise<void> {
     await this.db.insert(userRoles).values({
       userId:       dto.userId,
       roleId:       dto.roleId,
@@ -155,18 +152,6 @@ export class RbacService {
       resourceId:   dto.resourceId,
       expiresAt:    dto.expiresAt,
     })
-
-    // Publish NATS event
-    if (nc) {
-      publish(nc, Subjects.AUTH_ROLE_ASSIGNED, {
-        userId:       dto.userId,
-        roleId:       dto.roleId,
-        roleName:     dto.roleName ?? dto.roleId,
-        resourceType: dto.resourceType,
-        resourceId:   dto.resourceId,
-        grantedBy:    dto.grantedBy,
-      })
-    }
   }
 
   async revokeRole(userId: string, roleId: string, resourceId?: string): Promise<void> {
@@ -178,46 +163,6 @@ export class RbacService {
     }
 
     await this.db.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, roleId)))
-  }
-
-  async listRoles(orgId: string) {
-    return this.db
-      .select()
-      .from(roles)
-      .where(or(eq(roles.orgId, orgId), isNull(roles.orgId)))
-  }
-
-  async createRole(orgId: string, name: string, scope: string, permissions: string[]) {
-    const [inserted] = await this.db
-      .insert(roles)
-      .values({
-        orgId,
-        name,
-        scope,
-        permissions,
-        isSystem: false,
-      })
-      .returning()
-    return inserted
-  }
-
-  async updateRole(orgId: string, roleId: string, data: { name?: string; permissions?: string[] }) {
-    const [updated] = await this.db
-      .update(roles)
-      .set(data)
-      .where(and(eq(roles.id, roleId), eq(roles.orgId, orgId), eq(roles.isSystem, false)))
-      .returning()
-    if (!updated) throw new Error('Role not found or is a system role')
-    return updated
-  }
-
-  async deleteRole(orgId: string, roleId: string) {
-    const [deleted] = await this.db
-      .delete(roles)
-      .where(and(eq(roles.id, roleId), eq(roles.orgId, orgId), eq(roles.isSystem, false)))
-      .returning()
-    if (!deleted) throw new Error('Role not found or is a system role')
-    return deleted
   }
 
   /** Seed all system roles for a given org (idempotent) */

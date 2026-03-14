@@ -1533,7 +1533,7 @@ export function requirePermission(
 
 ---
 
-- [X] ### TASK 1-05 — User & Org Routes
+- [ ] ### TASK 1-05 — User & Org Routes
 
 **`src/routes/users.ts` endpoints:**
 
@@ -1558,7 +1558,7 @@ DELETE /orgs/:orgId/users/:userId/roles/:roleId → revoke role
 
 ---
 
-- [X] ### TASK 1-06 — NATS Event Publishing (Auth Service)
+- [ ] ### TASK 1-06 — NATS Event Publishing (Auth Service)
 
 **Add to auth service — publish events after successful operations:**
 
@@ -1593,7 +1593,7 @@ publish(nc, Subjects.AUTH_USER_INVITED, {
 
 ---
 
-- [x] ### TASK 1-07 — Bootstrap `apps/gateway`
+- [ ] ### TASK 1-07 — Bootstrap `apps/gateway`
 
 **Purpose:** Single entry point — validates JWT, routes to correct service.
 

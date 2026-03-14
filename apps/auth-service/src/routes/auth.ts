@@ -35,7 +35,7 @@ export async function authRoutes(app: FastifyInstance) {
   // POST /auth/register
   app.post('/register', async (request, reply) => {
     const body = registerSchema.parse(request.body)
-    const result = await authService.register(body, app.nc)
+    const result = await authService.register(body)
     return reply.code(201).send(result)
   })
 

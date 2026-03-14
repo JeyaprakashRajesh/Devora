@@ -1,17 +1,22 @@
 import { FastifyInstance } from 'fastify'
+import { eq, and, or, isNull } from 'drizzle-orm'
+import { schema } from '@devora/db'
 import { authenticate } from '../middleware/authenticate.js'
 import { RbacService } from '../services/rbac.service.js'
 import type { JwtPayload } from '../middleware/authenticate.js'
 
-export async function rolesRoutes(app: FastifyInstance) {
-  const rbacService = new RbacService(app.db)
+const { roles: rolesTable } = schema
 
+export async function rolesRoutes(app: FastifyInstance) {
   // GET /orgs/:orgId/roles
   app.get('/:orgId/roles', {
     preHandler: [authenticate],
   }, async (request, reply) => {
     const { orgId } = request.params as { orgId: string }
-    const rolesList = await rbacService.listRoles(orgId)
+    const rolesList = await app.db
+      .select()
+      .from(rolesTable)
+      .where(or(eq(rolesTable.orgId, orgId), isNull(rolesTable.orgId)))
     return reply.send(rolesList)
   })
 
@@ -21,45 +26,26 @@ export async function rolesRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { orgId } = request.params as { orgId: string }
     const { name, scope, permissions } = request.body as { name: string; scope: string; permissions: string[] }
-    const role = await rbacService.createRole(orgId, name, scope, permissions)
-    return reply.code(201).send(role)
-  })
-
-  // PUT /orgs/:orgId/roles/:roleId — update custom role
-  app.put('/:orgId/roles/:roleId', {
-    preHandler: [authenticate],
-  }, async (request, reply) => {
-    const { orgId, roleId } = request.params as { orgId: string; roleId: string }
-    const { name, permissions } = request.body as { name?: string; permissions?: string[] }
-    const role = await rbacService.updateRole(orgId, roleId, { name, permissions })
-    return reply.send(role)
-  })
-
-  // DELETE /orgs/:orgId/roles/:roleId — delete custom role
-  app.delete('/:orgId/roles/:roleId', {
-    preHandler: [authenticate],
-  }, async (request, reply) => {
-    const { orgId, roleId } = request.params as { orgId: string; roleId: string }
-    await rbacService.deleteRole(orgId, roleId)
-    return reply.code(204).send()
+    // TODO: insert into DB (Task 1-05)
+    return reply.code(201).send({ orgId, name, scope, permissions, isSystem: false })
   })
 
   // POST /orgs/:orgId/users/:userId/roles — assign role
   app.post('/:orgId/users/:userId/roles', {
     preHandler: [authenticate],
   }, async (request, reply) => {
-    const { userId } = request.params as { orgId: string; userId: string }
-    const { roleId, resourceType, resourceId, expiresAt } = request.body as any
+    const { orgId, userId } = request.params as { orgId: string; userId: string }
+    const { roleId, resourceType, resourceId } = request.body as any
     const actor = request.user as JwtPayload
+    const rbacService = new RbacService(app.db)
     await rbacService.assignRole({
       userId,
       roleId,
       resourceType,
       resourceId,
-      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
       grantedBy: actor.sub,
-    }, app.nc)
-    return reply.code(201).send({ userId, roleId, resourceType, resourceId })
+    })
+    return reply.code(201).send({ userId, orgId, roleId, resourceType, resourceId })
   })
 
   // DELETE /orgs/:orgId/users/:userId/roles/:roleId — revoke role
@@ -68,6 +54,7 @@ export async function rolesRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const { userId, roleId } = request.params as { orgId: string; userId: string; roleId: string }
     const { resourceId } = (request.query ?? {}) as { resourceId?: string }
+    const rbacService = new RbacService(app.db)
     await rbacService.revokeRole(userId, roleId, resourceId)
     return reply.code(204).send()
   })
