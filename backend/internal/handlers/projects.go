@@ -178,18 +178,19 @@ func CreateProject(c *gin.Context) {
 			log.Printf("warning: failed to ensure Gitea org %s: %v", orgSlug, err)
 		}
 
-		repoID, cloneURL, repoErr := gitea.Default.CreateRepo(orgSlug, project.Slug)
+		repoID, cloneURL, repoURL, repoErr := gitea.Default.CreateRepo(orgSlug, project.Slug)
 		if repoErr != nil {
 			log.Printf("warning: failed to create Gitea repo for project %s: %v", project.ID, repoErr)
 		} else {
 			_, upErr := db.Pool.Exec(ctx,
-				"UPDATE projects SET gitea_repo_id = $1, gitea_clone_url = $2, updated_at = NOW() WHERE id = $3",
-				repoID, cloneURL, project.ID,
+				"UPDATE projects SET gitea_repo_id = $1, gitea_repo_url = $2, gitea_clone_url = $3, updated_at = NOW() WHERE id = $4",
+				repoID, repoURL, cloneURL, project.ID,
 			)
 			if upErr != nil {
 				log.Printf("warning: failed to persist Gitea repo metadata for project %s: %v", project.ID, upErr)
 			} else {
 				project.GiteaRepoID = &repoID
+				project.GiteaRepoURL = &repoURL
 				project.GiteaCloneURL = &cloneURL
 			}
 		}
@@ -220,7 +221,7 @@ func ListProjects(c *gin.Context) {
 		return
 	}
 
-	isOrgAdmin, err := hasOrgProjectManage(ctx, userID)
+	isOrgAdmin, err := hasOrgProjectManage(ctx, userID, "")
 	if err != nil {
 		utils.InternalError(c, err)
 		return
@@ -328,6 +329,61 @@ func GetProject(c *gin.Context) {
 	if err != nil {
 		utils.InternalError(c, err)
 		return
+	}
+
+	if gitea.Default != nil {
+		needsRepoMeta := project.GiteaRepoID == nil ||
+			project.GiteaCloneURL == nil || strings.TrimSpace(*project.GiteaCloneURL) == "" ||
+			project.GiteaRepoURL == nil || strings.TrimSpace(*project.GiteaRepoURL) == ""
+		if needsRepoMeta {
+			var orgSlug string
+			if slugErr := db.Pool.QueryRow(ctx, "SELECT slug FROM organizations WHERE id = $1", orgID).Scan(&orgSlug); slugErr == nil {
+				if orgErr := gitea.Default.CreateOrg(orgSlug, orgSlug); orgErr != nil {
+					log.Printf("warning: failed to ensure Gitea org %s while loading project %s: %v", orgSlug, project.ID, orgErr)
+				}
+
+				repoID, cloneURL, repoURL, repoErr := gitea.Default.CreateRepo(orgSlug, project.Slug)
+				if repoErr != nil {
+					info, infoErr := gitea.Default.GetRepoInfo(orgSlug, project.Slug)
+					if infoErr != nil {
+						log.Printf("warning: failed to recover Gitea repo metadata for project %s: %v", project.ID, repoErr)
+					} else {
+						if idValue, ok := info["id"]; ok {
+							switch v := idValue.(type) {
+							case float64:
+								repoID = int64(v)
+							case int64:
+								repoID = v
+							case int:
+								repoID = int64(v)
+							}
+						}
+						if cloneValue, ok := info["clone_url"].(string); ok {
+							cloneURL = cloneValue
+						}
+						if htmlValue, ok := info["html_url"].(string); ok {
+							repoURL = htmlValue
+						}
+					}
+				}
+
+				if cloneURL != "" && repoURL != "" {
+					_, upErr := db.Pool.Exec(ctx,
+						"UPDATE projects SET gitea_repo_id = $1, gitea_repo_url = $2, gitea_clone_url = $3, updated_at = NOW() WHERE id = $4",
+						repoID, repoURL, cloneURL, project.ID,
+					)
+					if upErr != nil {
+						log.Printf("warning: failed to persist recovered repo metadata for project %s: %v", project.ID, upErr)
+					} else {
+						project.GiteaRepoID = &repoID
+						project.GiteaRepoURL = &repoURL
+						project.GiteaCloneURL = &cloneURL
+					}
+				}
+			} else {
+				log.Printf("warning: failed to load org slug while loading project %s: %v", project.ID, slugErr)
+			}
+		}
 	}
 
 	utils.OK(c, project)

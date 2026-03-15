@@ -608,7 +608,10 @@ func RevokeRole(c *gin.Context) {
 		return
 	}
 
-	var cmdTag pgconn.CommandTag
+	var (
+		cmdTag pgconn.CommandTag
+		err    error
+	)
 	if resourceType == "" {
 		cmdTag, err = db.Pool.Exec(ctx,
 			"DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2",
