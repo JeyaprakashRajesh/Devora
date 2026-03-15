@@ -60,14 +60,13 @@ services:
     entrypoint: >
       sh -c "
         /usr/bin/entrypoint &
-        sleep 10 &&
-        gitea admin user create
+        until wget -q -O /dev/null http://127.0.0.1:3001/; do sleep 2; done &&
+        su git -s /bin/sh -c 'gitea admin user create
           --username devora_admin
           --password devora_admin_secret
           --email admin@devora.local
           --admin
-          --must-change-password=false
-          2>/dev/null || true &&
+          --must-change-password=false' || true &&
         wait
       "
     environment:

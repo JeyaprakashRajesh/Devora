@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Client struct {
@@ -77,7 +78,7 @@ func (c *Client) CreateOrg(slug, name string) error {
 	return nil
 }
 
-func (c *Client) CreateRepo(orgSlug, repoName string) (int64, string, error) {
+func (c *Client) CreateRepo(orgSlug, repoName string) (int64, string, string, error) {
 	body := map[string]interface{}{
 		"name":           repoName,
 		"private":        true,
@@ -86,19 +87,26 @@ func (c *Client) CreateRepo(orgSlug, repoName string) (int64, string, error) {
 	}
 	respBytes, status, err := c.do("POST", "/orgs/"+orgSlug+"/repos", body)
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 	if status != 201 {
-		return 0, "", fmt.Errorf("gitea CreateRepo failed with status %d: %s", status, string(respBytes))
+		return 0, "", "", fmt.Errorf("gitea CreateRepo failed with status %d: %s", status, string(respBytes))
 	}
 	var repo struct {
 		ID       int64  `json:"id"`
 		CloneURL string `json:"clone_url"`
+		HTMLURL  string `json:"html_url"`
 	}
 	if err := json.Unmarshal(respBytes, &repo); err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
-	return repo.ID, repo.CloneURL, nil
+	if repo.HTMLURL == "" {
+		repo.HTMLURL = strings.TrimSuffix(c.baseURL, "/") + "/" + orgSlug + "/" + repoName
+	}
+	if repo.CloneURL == "" {
+		repo.CloneURL = strings.TrimSuffix(c.baseURL, "/") + "/" + orgSlug + "/" + repoName + ".git"
+	}
+	return repo.ID, repo.CloneURL, repo.HTMLURL, nil
 }
 
 func (c *Client) CreateWebhook(orgSlug, repoName, webhookURL string) error {
