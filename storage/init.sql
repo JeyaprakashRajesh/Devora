@@ -6,6 +6,10 @@ CREATE TABLE organizations (
 	name       TEXT NOT NULL,
 	slug       TEXT UNIQUE NOT NULL,
 	owner_id   UUID,
+	contact_email TEXT,
+	website TEXT,
+	logo_url TEXT,
+	setup_complete BOOLEAN DEFAULT TRUE,
 	created_at TIMESTAMPTZ DEFAULT NOW(),
 	updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -20,10 +24,33 @@ CREATE TABLE users (
 	password_hash TEXT,
 	status        TEXT DEFAULT 'active' CHECK (status IN ('active','suspended','invited')),
 	is_org_owner  BOOLEAN DEFAULT FALSE,
+	must_change_password BOOLEAN DEFAULT FALSE,
+	onboarding_complete BOOLEAN DEFAULT FALSE,
 	last_seen_at  TIMESTAMPTZ,
 	created_at    TIMESTAMPTZ DEFAULT NOW(),
 	updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Keep local/dev databases compatible when this script runs against existing schema.
+ALTER TABLE organizations
+	ADD COLUMN IF NOT EXISTS contact_email TEXT,
+	ADD COLUMN IF NOT EXISTS website TEXT,
+	ADD COLUMN IF NOT EXISTS logo_url TEXT,
+	ADD COLUMN IF NOT EXISTS setup_complete BOOLEAN DEFAULT TRUE;
+
+UPDATE organizations
+SET setup_complete = TRUE
+WHERE setup_complete IS NULL;
+
+ALTER TABLE users
+	ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE,
+	ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT FALSE,
+	ADD COLUMN IF NOT EXISTS job_title TEXT,
+	ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
+UPDATE users
+SET must_change_password = TRUE
+WHERE status = 'invited';
 
 -- Add owner FK after users table exists
 ALTER TABLE organizations
@@ -161,6 +188,34 @@ CREATE TABLE projects (
 	created_at      TIMESTAMPTZ DEFAULT NOW(),
 	updated_at      TIMESTAMPTZ DEFAULT NOW(),
 	UNIQUE(org_id, slug)
+);
+
+-- PROJECT-BASED PERMISSIONS
+CREATE TABLE IF NOT EXISTS project_permissions (
+	id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	org_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+	name         TEXT NOT NULL,
+	description  TEXT,
+	project_id   UUID REFERENCES projects(id) ON DELETE CASCADE,
+	access_level TEXT NOT NULL CHECK (access_level IN ('read', 'write', 'full')),
+	created_by   UUID REFERENCES users(id),
+	created_at   TIMESTAMPTZ DEFAULT NOW(),
+	UNIQUE(org_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS group_permissions (
+	group_id      UUID NOT NULL REFERENCES user_groups(id) ON DELETE CASCADE,
+	permission_id UUID NOT NULL REFERENCES project_permissions(id) ON DELETE CASCADE,
+	PRIMARY KEY (group_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_permissions (
+	id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	permission_id UUID NOT NULL REFERENCES project_permissions(id) ON DELETE CASCADE,
+	granted_by    UUID REFERENCES users(id),
+	granted_at    TIMESTAMPTZ DEFAULT NOW(),
+	UNIQUE(user_id, permission_id)
 );
 
 -- PROJECT MEMBERS (individual user assignment)

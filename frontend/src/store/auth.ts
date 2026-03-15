@@ -7,15 +7,28 @@ export interface User {
   email: string
   username: string
   display_name?: string
+  job_title?: string
+  avatar_url?: string
   status: string
   is_org_owner: boolean
+  must_change_password?: boolean
+  onboarding_complete?: boolean
+  last_seen_at?: string
   created_at: string
+  updated_at?: string
 }
 
 export interface Org {
   id: string
   name: string
   slug: string
+  owner_id?: string
+  contact_email?: string
+  website?: string
+  logo_url?: string
+  setup_complete: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 interface AuthState {
@@ -40,7 +53,12 @@ export const useAuthStore = create<AuthState>()(
       clearAuth: () =>
         set({ user: null, org: null, token: null, permissions: [] }),
       can: (resource, action) => {
-        const { permissions } = get()
+        const { permissions, user } = get()
+
+        if (user?.is_org_owner) {
+          return true
+        }
+
         return (
           permissions.includes(`${resource}:manage`) ||
           permissions.includes(`${resource}:${action}`)

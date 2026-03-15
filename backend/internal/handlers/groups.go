@@ -49,6 +49,15 @@ type groupDetailRole struct {
 	IsSystem    bool    `json:"is_system"`
 }
 
+type groupDetailPermission struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	ProjectID   *string `json:"project_id"`
+	ProjectName *string `json:"project_name"`
+	AccessLevel string  `json:"access_level"`
+}
+
 func ListGroups(c *gin.Context) {
 	ctx := context.Background()
 	orgID := c.GetString("orgID")
@@ -182,6 +191,12 @@ func GetGroup(c *gin.Context) {
 		return
 	}
 
+	permissions, err := listPermissionsByGroupID(ctx, groupID)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+
 	utils.OK(c, gin.H{
 		"id":           group.ID,
 		"org_id":       group.OrgID,
@@ -190,6 +205,7 @@ func GetGroup(c *gin.Context) {
 		"created_at":   group.CreatedAt,
 		"members":      members,
 		"roles":        roles,
+		"permissions":  permissions,
 		"member_count": len(members),
 	})
 }
@@ -977,4 +993,43 @@ func listRolesByGroupID(ctx context.Context, groupID string) ([]groupDetailRole,
 	}
 
 	return roles, nil
+}
+
+func listPermissionsByGroupID(ctx context.Context, groupID string) ([]groupDetailPermission, error) {
+	rows, err := db.Pool.Query(ctx, `
+		SELECT pp.id, pp.name, pp.description,
+		       pp.project_id, p.name AS project_name,
+		       pp.access_level
+		FROM group_permissions gp
+		JOIN project_permissions pp ON pp.id = gp.permission_id
+		LEFT JOIN projects p ON p.id = pp.project_id
+		WHERE gp.group_id = $1
+		ORDER BY pp.created_at DESC
+	`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	permissions := make([]groupDetailPermission, 0)
+	for rows.Next() {
+		var permission groupDetailPermission
+		if scanErr := rows.Scan(
+			&permission.ID,
+			&permission.Name,
+			&permission.Description,
+			&permission.ProjectID,
+			&permission.ProjectName,
+			&permission.AccessLevel,
+		); scanErr != nil {
+			return nil, scanErr
+		}
+		permissions = append(permissions, permission)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return permissions, nil
 }

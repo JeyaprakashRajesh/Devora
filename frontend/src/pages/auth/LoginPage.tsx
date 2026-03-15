@@ -62,7 +62,11 @@ export default function LoginPage() {
       const meData = unwrapData<MeResponse>(meRes.data)
 
       setAuth(meData.user, meData.org, loginData.token, meData.permissions ?? [])
-      navigate('/dashboard', { replace: true })
+      if (meData.user.must_change_password || !meData.user.onboarding_complete) {
+        navigate('/onboarding', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
     } catch (err: unknown) {
       const maybeErr = err as {
         response?: { data?: { error?: string } }
@@ -78,7 +82,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-[400px] bg-bg-surface border border-border rounded-lg p-8">
         <h1 className="text-xl font-bold text-text-primary">devora</h1>
-        <p className="text-sm text-text-secondary mt-1">Sign in to your workspace</p>
+        <p className="text-sm text-text-secondary mt-1">Sign in to Devora</p>
 
         <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
           <Input
@@ -118,7 +122,7 @@ export default function LoginPage() {
           <hr className="border-border my-4" />
 
           <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/register')}>
-            Create a new organization →
+            Set up your organization →
           </Button>
         </form>
       </div>

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/devora/devora/internal/activity"
@@ -54,6 +55,15 @@ type projectMemberItem struct {
 	RoleName    *string `json:"role_name,omitempty"`
 	AddedAt     *string `json:"added_at,omitempty"`
 	ViaGroup    *string `json:"via_group,omitempty"`
+}
+
+type projectGroupItem struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	MemberCount int     `json:"member_count"`
+	RoleID      *string `json:"role_id,omitempty"`
+	RoleName    *string `json:"role_name,omitempty"`
 }
 
 func CreateProject(c *gin.Context) {
@@ -321,6 +331,121 @@ func GetProject(c *gin.Context) {
 	}
 
 	utils.OK(c, project)
+}
+
+func ListProjectActivity(c *gin.Context) {
+	ctx := context.Background()
+	orgID := c.GetString("orgID")
+	userID := c.GetString("userID")
+	if orgID == "" || userID == "" {
+		utils.Unauthorized(c)
+		return
+	}
+
+	projectID := c.Param("id")
+	if _, err := loadProjectForOrg(ctx, projectID, orgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.NotFound(c, "Project not found")
+			return
+		}
+		utils.InternalError(c, err)
+		return
+	}
+
+	allowed, err := canAccessProject(ctx, projectID, userID)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+	if !allowed {
+		utils.Forbidden(c)
+		return
+	}
+
+	limit := 20
+	if l := strings.TrimSpace(c.Query("limit")); l != "" {
+		if parsed, parseErr := strconv.Atoi(l); parseErr == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	type activityItem struct {
+		ID           string                 `json:"id"`
+		Type         string                 `json:"type"`
+		Metadata     map[string]interface{} `json:"metadata"`
+		CreatedAt    string                 `json:"created_at"`
+		ActorID      *string                `json:"actor_id"`
+		ActorName    *string                `json:"actor_name,omitempty"`
+		ActorDisplay *string                `json:"actor_display,omitempty"`
+	}
+
+	rows, err := db.Pool.Query(ctx, `
+		SELECT pa.id, pa.type, COALESCE(pa.metadata, '{}'::jsonb), pa.created_at::text,
+		       pa.actor_id::text, u.username, u.display_name
+		FROM project_activity pa
+		LEFT JOIN users u ON u.id = pa.actor_id
+		WHERE pa.project_id = $1
+		ORDER BY pa.created_at DESC
+		LIMIT $2
+	`, projectID, limit)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	items := make([]activityItem, 0)
+	for rows.Next() {
+		var item activityItem
+		if scanErr := rows.Scan(
+			&item.ID,
+			&item.Type,
+			&item.Metadata,
+			&item.CreatedAt,
+			&item.ActorID,
+			&item.ActorName,
+			&item.ActorDisplay,
+		); scanErr != nil {
+			utils.InternalError(c, scanErr)
+			return
+		}
+		items = append(items, item)
+	}
+	if rows.Err() != nil {
+		utils.InternalError(c, rows.Err())
+		return
+	}
+
+	utils.OK(c, items)
+}
+
+func ListBranches(c *gin.Context) {
+	ctx := context.Background()
+	project, ok := verifyProjectAccess(c)
+	if !ok {
+		return
+	}
+
+	if gitea.Default == nil {
+		utils.InternalError(c, errors.New("gitea client is not initialized"))
+		return
+	}
+
+	orgSlug := ""
+	if err := db.Pool.QueryRow(ctx,
+		"SELECT slug FROM organizations WHERE id=$1",
+		project.OrgID,
+	).Scan(&orgSlug); err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+
+	branches, err := gitea.Default.GetBranches(orgSlug, project.Slug)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+	utils.OK(c, branches)
 }
 
 func UpdateProject(c *gin.Context) {
@@ -652,6 +777,78 @@ func ListProjectMembers(c *gin.Context) {
 	utils.OK(c, gin.H{"members": members, "total": len(members)})
 }
 
+func ListProjectGroups(c *gin.Context) {
+	ctx := context.Background()
+	orgID := c.GetString("orgID")
+	userID := c.GetString("userID")
+	if orgID == "" || userID == "" {
+		utils.Unauthorized(c)
+		return
+	}
+
+	projectID := c.Param("id")
+	if _, err := loadProjectForOrg(ctx, projectID, orgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.NotFound(c, "Project not found")
+			return
+		}
+		utils.InternalError(c, err)
+		return
+	}
+
+	allowed, err := canAccessProject(ctx, projectID, userID)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+	if !allowed {
+		utils.Forbidden(c)
+		return
+	}
+
+	rows, err := db.Pool.Query(ctx, `
+		SELECT ug.id, ug.name, ug.description,
+		       COUNT(DISTINCT ugm.user_id) AS member_count,
+		       pg.role_id::text,
+		       r.name
+		FROM project_groups pg
+		JOIN user_groups ug ON ug.id = pg.group_id
+		LEFT JOIN user_group_members ugm ON ugm.group_id = ug.id
+		LEFT JOIN roles r ON r.id = pg.role_id
+		WHERE pg.project_id = $1
+		GROUP BY ug.id, ug.name, ug.description, pg.role_id, r.name
+		ORDER BY ug.name ASC
+	`, projectID)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+	defer rows.Close()
+
+	groups := make([]projectGroupItem, 0)
+	for rows.Next() {
+		var item projectGroupItem
+		if scanErr := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Description,
+			&item.MemberCount,
+			&item.RoleID,
+			&item.RoleName,
+		); scanErr != nil {
+			utils.InternalError(c, scanErr)
+			return
+		}
+		groups = append(groups, item)
+	}
+	if rows.Err() != nil {
+		utils.InternalError(c, rows.Err())
+		return
+	}
+
+	utils.OK(c, gin.H{"groups": groups, "total": len(groups)})
+}
+
 func AddProjectMember(c *gin.Context) {
 	ctx := context.Background()
 	orgID := c.GetString("orgID")
@@ -962,7 +1159,7 @@ func loadProjectForOrg(ctx context.Context, projectID, orgID string) (models.Pro
 	return project, err
 }
 
-func hasOrgProjectManage(ctx context.Context, userID string) (bool, error) {
+func hasOrgProjectManage(ctx context.Context, userID, projectID string) (bool, error) {
 	var count int
 	err := db.Pool.QueryRow(ctx, `
 		SELECT COUNT(*)
@@ -973,10 +1170,12 @@ func hasOrgProjectManage(ctx context.Context, userID string) (bool, error) {
 		WHERE ur.user_id = $1
 		  AND res.name = 'project'
 		  AND p.action = 'manage'
-		  AND ur.resource_type IS NULL
-		  AND ur.resource_id IS NULL
+		  AND (
+			 (ur.resource_type IS NULL AND ur.resource_id IS NULL)
+			 OR (ur.resource_type = 'project' AND ur.resource_id::text = $2)
+		  )
 		  AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-	`, userID).Scan(&count)
+	`, userID, projectID).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -984,7 +1183,7 @@ func hasOrgProjectManage(ctx context.Context, userID string) (bool, error) {
 }
 
 func canAccessProject(ctx context.Context, projectID, userID string) (bool, error) {
-	isAdmin, err := hasOrgProjectManage(ctx, userID)
+	isAdmin, err := hasOrgProjectManage(ctx, userID, projectID)
 	if err != nil {
 		return false, err
 	}

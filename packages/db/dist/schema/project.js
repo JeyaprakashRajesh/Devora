@@ -1,0 +1,100 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.pipelineJobs = exports.pipelineRuns = exports.pipelines = exports.pullRequests = exports.milestones = exports.issues = exports.projects = void 0;
+const pg_core_1 = require("drizzle-orm/pg-core");
+exports.projects = (0, pg_core_1.pgTable)('projects', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    orgId: (0, pg_core_1.uuid)('org_id').notNull(),
+    name: (0, pg_core_1.text)('name').notNull(),
+    slug: (0, pg_core_1.text)('slug').notNull(),
+    description: (0, pg_core_1.text)('description'),
+    visibility: (0, pg_core_1.text)('visibility').default('private').notNull(),
+    giteaRepoId: (0, pg_core_1.integer)('gitea_repo_id'),
+    defaultBranch: (0, pg_core_1.text)('default_branch').default('main').notNull(),
+    settings: (0, pg_core_1.jsonb)('settings').default({}).notNull(),
+    createdBy: (0, pg_core_1.uuid)('created_by').notNull(),
+    archivedAt: (0, pg_core_1.timestamp)('archived_at'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.issues = (0, pg_core_1.pgTable)('issues', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    projectId: (0, pg_core_1.uuid)('project_id').references(() => exports.projects.id, { onDelete: 'cascade' }).notNull(),
+    number: (0, pg_core_1.serial)('number').notNull(),
+    title: (0, pg_core_1.text)('title').notNull(),
+    body: (0, pg_core_1.text)('body'),
+    status: (0, pg_core_1.text)('status').default('open').notNull(),
+    priority: (0, pg_core_1.text)('priority').default('medium').notNull(),
+    type: (0, pg_core_1.text)('type').default('task').notNull(),
+    assigneeIds: (0, pg_core_1.jsonb)('assignee_ids').default([]).notNull(),
+    labelIds: (0, pg_core_1.jsonb)('label_ids').default([]).notNull(),
+    milestoneId: (0, pg_core_1.uuid)('milestone_id'),
+    parentId: (0, pg_core_1.uuid)('parent_id'),
+    createdBy: (0, pg_core_1.uuid)('created_by').notNull(),
+    closedBy: (0, pg_core_1.uuid)('closed_by'),
+    closedAt: (0, pg_core_1.timestamp)('closed_at'),
+    dueDate: (0, pg_core_1.date)('due_date'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').defaultNow().notNull(),
+});
+exports.milestones = (0, pg_core_1.pgTable)('milestones', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    projectId: (0, pg_core_1.uuid)('project_id').references(() => exports.projects.id, { onDelete: 'cascade' }).notNull(),
+    title: (0, pg_core_1.text)('title').notNull(),
+    description: (0, pg_core_1.text)('description'),
+    dueDate: (0, pg_core_1.date)('due_date'),
+    status: (0, pg_core_1.text)('status').default('open').notNull(),
+    createdBy: (0, pg_core_1.uuid)('created_by').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.pullRequests = (0, pg_core_1.pgTable)('pull_requests', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    projectId: (0, pg_core_1.uuid)('project_id').references(() => exports.projects.id, { onDelete: 'cascade' }).notNull(),
+    number: (0, pg_core_1.integer)('number').notNull(),
+    title: (0, pg_core_1.text)('title').notNull(),
+    body: (0, pg_core_1.text)('body'),
+    status: (0, pg_core_1.text)('status').default('open').notNull(),
+    sourceBranch: (0, pg_core_1.text)('source_branch').notNull(),
+    targetBranch: (0, pg_core_1.text)('target_branch').notNull(),
+    headSha: (0, pg_core_1.text)('head_sha'),
+    baseSha: (0, pg_core_1.text)('base_sha'),
+    authorId: (0, pg_core_1.uuid)('author_id').notNull(),
+    mergedBy: (0, pg_core_1.uuid)('merged_by'),
+    mergedAt: (0, pg_core_1.timestamp)('merged_at'),
+    linkedIssues: (0, pg_core_1.jsonb)('linked_issues').default([]).notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').defaultNow().notNull(),
+});
+exports.pipelines = (0, pg_core_1.pgTable)('pipelines', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    projectId: (0, pg_core_1.uuid)('project_id').references(() => exports.projects.id, { onDelete: 'cascade' }).notNull(),
+    name: (0, pg_core_1.text)('name').notNull(),
+    trigger: (0, pg_core_1.jsonb)('trigger').notNull(),
+    definition: (0, pg_core_1.jsonb)('definition').notNull(),
+    createdBy: (0, pg_core_1.uuid)('created_by').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.pipelineRuns = (0, pg_core_1.pgTable)('pipeline_runs', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    pipelineId: (0, pg_core_1.uuid)('pipeline_id').references(() => exports.pipelines.id),
+    projectId: (0, pg_core_1.uuid)('project_id').notNull(),
+    triggerType: (0, pg_core_1.text)('trigger_type'),
+    triggerActor: (0, pg_core_1.uuid)('trigger_actor'),
+    commitSha: (0, pg_core_1.text)('commit_sha'),
+    branch: (0, pg_core_1.text)('branch'),
+    status: (0, pg_core_1.text)('status').default('queued').notNull(),
+    startedAt: (0, pg_core_1.timestamp)('started_at'),
+    finishedAt: (0, pg_core_1.timestamp)('finished_at'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.pipelineJobs = (0, pg_core_1.pgTable)('pipeline_jobs', {
+    id: (0, pg_core_1.uuid)('id').primaryKey().defaultRandom(),
+    runId: (0, pg_core_1.uuid)('run_id').references(() => exports.pipelineRuns.id, { onDelete: 'cascade' }).notNull(),
+    name: (0, pg_core_1.text)('name').notNull(),
+    status: (0, pg_core_1.text)('status').default('pending').notNull(),
+    runnerId: (0, pg_core_1.uuid)('runner_id'),
+    logStreamId: (0, pg_core_1.text)('log_stream_id'),
+    startedAt: (0, pg_core_1.timestamp)('started_at'),
+    finishedAt: (0, pg_core_1.timestamp)('finished_at'),
+    exitCode: (0, pg_core_1.integer)('exit_code'),
+});
+//# sourceMappingURL=project.js.map

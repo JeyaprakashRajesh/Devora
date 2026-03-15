@@ -13,6 +13,7 @@ import (
 	"github.com/devora/devora/internal/models"
 	"github.com/devora/devora/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -66,8 +67,11 @@ func ListUsers(c *gin.Context) {
 	}
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT id, org_id, email, username, display_name, status,
-		       is_org_owner, last_seen_at, created_at, updated_at
+		SELECT id, org_id, email, username, display_name,
+		       job_title, avatar_url, status,
+		       is_org_owner, must_change_password,
+		       onboarding_complete, last_seen_at,
+		       created_at, updated_at
 		FROM users
 		WHERE org_id = $1
 		ORDER BY created_at ASC
@@ -87,8 +91,12 @@ func ListUsers(c *gin.Context) {
 			&user.Email,
 			&user.Username,
 			&user.DisplayName,
+			&user.JobTitle,
+			&user.AvatarURL,
 			&user.Status,
 			&user.IsOrgOwner,
+			&user.MustChangePassword,
+			&user.OnboardingComplete,
 			&user.LastSeenAt,
 			&user.CreatedAt,
 			&user.UpdatedAt,
@@ -150,8 +158,8 @@ func InviteUser(c *gin.Context) {
 
 	var invited invitedUserResponse
 	err = db.Pool.QueryRow(ctx, `
-		INSERT INTO users (org_id, email, username, display_name, password_hash, status)
-		VALUES ($1, $2, $3, $4, $5, 'invited')
+		INSERT INTO users (org_id, email, username, display_name, password_hash, status, must_change_password, onboarding_complete)
+		VALUES ($1, $2, $3, $4, $5, 'invited', TRUE, FALSE)
 		RETURNING id, org_id, email, username, display_name, status, created_at
 	`, orgID, req.Email, req.Username, req.DisplayName, passwordHash).
 		Scan(&invited.ID, &invited.OrgID, &invited.Email, &invited.Username, &invited.DisplayName, &invited.Status, &invited.CreatedAt)
@@ -169,8 +177,9 @@ func InviteUser(c *gin.Context) {
 	}
 
 	utils.Created(c, gin.H{
-		"user":          invited,
-		"temp_password": tempPassword,
+		"user":                 invited,
+		"temp_password":        tempPassword,
+		"must_change_password": true,
 	})
 }
 
@@ -185,8 +194,11 @@ func GetUser(c *gin.Context) {
 	targetID := c.Param("id")
 	var user models.User
 	err := db.Pool.QueryRow(ctx, `
-		SELECT id, org_id, email, username, display_name, status,
-		       is_org_owner, last_seen_at, created_at, updated_at
+		SELECT id, org_id, email, username, display_name,
+		       job_title, avatar_url, status,
+		       is_org_owner, must_change_password,
+		       onboarding_complete, last_seen_at,
+		       created_at, updated_at
 		FROM users
 		WHERE id = $1 AND org_id = $2
 	`, targetID, orgID).Scan(
@@ -195,8 +207,12 @@ func GetUser(c *gin.Context) {
 		&user.Email,
 		&user.Username,
 		&user.DisplayName,
+		&user.JobTitle,
+		&user.AvatarURL,
 		&user.Status,
 		&user.IsOrgOwner,
+		&user.MustChangePassword,
+		&user.OnboardingComplete,
 		&user.LastSeenAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -273,7 +289,7 @@ func UpdateUser(c *gin.Context) {
 		argPos++
 	}
 
-	query := "UPDATE users SET " + strings.Join(setClauses, ", ") + ", updated_at = NOW() WHERE id = $" + itoa(argPos) + " AND org_id = $" + itoa(argPos+1) + " RETURNING id, org_id, email, username, display_name, status, is_org_owner, last_seen_at, created_at, updated_at"
+	query := "UPDATE users SET " + strings.Join(setClauses, ", ") + ", updated_at = NOW() WHERE id = $" + itoa(argPos) + " AND org_id = $" + itoa(argPos+1) + " RETURNING id, org_id, email, username, display_name, job_title, avatar_url, status, is_org_owner, must_change_password, onboarding_complete, last_seen_at, created_at, updated_at"
 	args = append(args, targetID, orgID)
 
 	var user models.User
@@ -283,8 +299,12 @@ func UpdateUser(c *gin.Context) {
 		&user.Email,
 		&user.Username,
 		&user.DisplayName,
+		&user.JobTitle,
+		&user.AvatarURL,
 		&user.Status,
 		&user.IsOrgOwner,
+		&user.MustChangePassword,
+		&user.OnboardingComplete,
 		&user.LastSeenAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -443,6 +463,44 @@ func AssignRole(c *gin.Context) {
 		return
 	}
 
+	if req.ResourceType == nil && req.ResourceID != nil {
+		utils.BadRequest(c, "resource_type is required when resource_id is provided")
+		return
+	}
+	if req.ResourceType != nil && req.ResourceID == nil {
+		utils.BadRequest(c, "resource_id is required when resource_type is provided")
+		return
+	}
+
+	if req.ResourceType != nil {
+		resourceType := strings.ToLower(strings.TrimSpace(*req.ResourceType))
+		resourceID := strings.TrimSpace(*req.ResourceID)
+		if resourceType == "" || resourceID == "" {
+			utils.BadRequest(c, "resource_type and resource_id cannot be empty")
+			return
+		}
+		if resourceType != "project" {
+			utils.BadRequest(c, "only project-scoped role assignments are supported")
+			return
+		}
+
+		var exists bool
+		if err := db.Pool.QueryRow(ctx,
+			"SELECT EXISTS(SELECT 1 FROM projects WHERE id = $1 AND org_id = $2)",
+			resourceID, orgID,
+		).Scan(&exists); err != nil {
+			utils.InternalError(c, err)
+			return
+		}
+		if !exists {
+			utils.NotFound(c, "Project not found")
+			return
+		}
+
+		req.ResourceType = &resourceType
+		req.ResourceID = &resourceID
+	}
+
 	if _, err := ensureUserInOrg(ctx, targetID, orgID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			utils.NotFound(c, "User not found")
@@ -513,9 +571,23 @@ func RevokeRole(c *gin.Context) {
 
 	targetID := c.Param("id")
 	roleID := c.Param("roleId")
+	resourceType := strings.TrimSpace(c.Query("resource_type"))
+	resourceID := strings.TrimSpace(c.Query("resource_id"))
 	if targetID == actorID {
 		c.JSON(403, gin.H{"error": "Cannot modify your own roles"})
 		return
+	}
+
+	if (resourceType == "") != (resourceID == "") {
+		utils.BadRequest(c, "resource_type and resource_id must be provided together")
+		return
+	}
+	if resourceType != "" {
+		resourceType = strings.ToLower(resourceType)
+		if resourceType != "project" {
+			utils.BadRequest(c, "only project-scoped role revocation is supported")
+			return
+		}
 	}
 
 	if _, err := ensureUserInOrg(ctx, targetID, orgID); err != nil {
@@ -536,10 +608,22 @@ func RevokeRole(c *gin.Context) {
 		return
 	}
 
-	cmdTag, err := db.Pool.Exec(ctx,
-		"DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2",
-		targetID, roleID,
-	)
+	var cmdTag pgconn.CommandTag
+	if resourceType == "" {
+		cmdTag, err = db.Pool.Exec(ctx,
+			"DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2",
+			targetID, roleID,
+		)
+	} else {
+		cmdTag, err = db.Pool.Exec(ctx,
+			`DELETE FROM user_roles
+			 WHERE user_id = $1
+			   AND role_id = $2
+			   AND resource_type = $3
+			   AND resource_id::text = $4`,
+			targetID, roleID, resourceType, resourceID,
+		)
+	}
 	if err != nil {
 		utils.InternalError(c, err)
 		return
@@ -550,7 +634,9 @@ func RevokeRole(c *gin.Context) {
 	}
 
 	if err = writeAuditLog(ctx, orgID, actorID, "role.revoked", "user", targetID, map[string]interface{}{
-		"role_id": roleID,
+		"role_id":       roleID,
+		"resource_type": resourceType,
+		"resource_id":   resourceID,
 	}); err != nil {
 		utils.InternalError(c, err)
 		return

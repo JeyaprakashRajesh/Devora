@@ -7,9 +7,10 @@ const pageNames: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/admin/users': 'Users',
   '/admin/users/invite': 'Invite User',
+  '/admin/groups': 'Groups',
   '/admin/roles': 'Roles',
   '/admin/roles/new': 'Create Role',
-  '/admin/groups': 'Groups',
+  '/admin/permissions': 'Permissions',
 }
 
 export default function TopBar() {
@@ -20,11 +21,14 @@ export default function TopBar() {
   if (!breadcrumb && location.pathname.startsWith('/admin/users/')) {
     breadcrumb = 'User Detail'
   }
-  if (!breadcrumb && location.pathname.startsWith('/admin/roles/')) {
-    breadcrumb = 'Role Detail'
-  }
   if (!breadcrumb && location.pathname.startsWith('/admin/groups/')) {
     breadcrumb = 'Group Detail'
+  }
+  if (!breadcrumb && location.pathname.startsWith('/admin/permissions')) {
+    breadcrumb = 'Permissions'
+  }
+  if (!breadcrumb && location.pathname.startsWith('/admin/roles/')) {
+    breadcrumb = 'Role Detail'
   }
   if (!breadcrumb && location.pathname.startsWith('/dashboard')) {
     breadcrumb = 'Dashboard'

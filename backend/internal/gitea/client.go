@@ -147,3 +147,90 @@ func (c *Client) GetRepoInfo(orgSlug, repoName string) (map[string]interface{}, 
 	}
 	return result, nil
 }
+
+// CreatePR creates a pull request in Gitea
+func (c *Client) CreatePR(orgSlug, repoName string, title, body, head, base string) (int, error) {
+	reqBody := map[string]interface{}{
+		"title": title,
+		"body":  body,
+		"head":  head,
+		"base":  base,
+	}
+	respBytes, status, err := c.do("POST", "/repos/"+orgSlug+"/"+repoName+"/pulls", reqBody)
+	if err != nil {
+		return 0, err
+	}
+	if status != 201 {
+		return 0, fmt.Errorf("gitea CreatePR failed: %d %s", status, string(respBytes))
+	}
+	var pr struct {
+		Number int `json:"number"`
+	}
+	json.Unmarshal(respBytes, &pr)
+	return pr.Number, nil
+}
+
+// MergePR merges a pull request in Gitea (method: "merge" | "squash" | "rebase")
+func (c *Client) MergePR(orgSlug, repoName string, prNumber int, method string) error {
+	reqBody := map[string]interface{}{
+		"do": method,
+	}
+	_, status, err := c.do("POST",
+		fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", orgSlug, repoName, prNumber), reqBody)
+	if err != nil {
+		return err
+	}
+	if status != 200 && status != 204 {
+		return fmt.Errorf("gitea MergePR failed with status %d", status)
+	}
+	return nil
+}
+
+// GetPRDiff returns the unified diff for a pull request
+func (c *Client) GetPRDiff(orgSlug, repoName string, prNumber int) (string, error) {
+	respBytes, status, err := c.do("GET",
+		fmt.Sprintf("/repos/%s/%s/pulls/%d.diff", orgSlug, repoName, prNumber), nil)
+	if err != nil {
+		return "", err
+	}
+	if status != 200 {
+		return "", fmt.Errorf("gitea GetPRDiff failed: %d", status)
+	}
+	return string(respBytes), nil
+}
+
+// ClosePR closes a pull request without merging
+func (c *Client) ClosePR(orgSlug, repoName string, prNumber int) error {
+	reqBody := map[string]interface{}{
+		"state": "closed",
+	}
+	_, status, err := c.do("PATCH",
+		fmt.Sprintf("/repos/%s/%s/pulls/%d", orgSlug, repoName, prNumber), reqBody)
+	if err != nil {
+		return err
+	}
+	if status != 201 && status != 200 {
+		return fmt.Errorf("gitea ClosePR failed: %d", status)
+	}
+	return nil
+}
+
+// GetBranches returns the list of branch names for a repo
+func (c *Client) GetBranches(orgSlug, repoName string) ([]string, error) {
+	respBytes, status, err := c.do("GET", "/repos/"+orgSlug+"/"+repoName+"/branches", nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != 200 {
+		return nil, fmt.Errorf("gitea GetBranches failed: %d", status)
+	}
+	var branches []struct {
+		Name string `json:"name"`
+	}
+	json.Unmarshal(respBytes, &branches)
+	names := make([]string, len(branches))
+	for i, b := range branches {
+		names[i] = b.Name
+	}
+	return names, nil
+}

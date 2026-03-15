@@ -5,9 +5,14 @@ import TopBar from './TopBar'
 
 export default function AppShell() {
   const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
 
   if (!token) {
     return <Navigate to="/login" replace />
+  }
+
+  if (user && (user.must_change_password || !user.onboarding_complete)) {
+    return <Navigate to="/onboarding" replace />
   }
 
   return (

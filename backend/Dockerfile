@@ -7,6 +7,7 @@ RUN go build -o server ./cmd/server
 
 FROM alpine:latest
 WORKDIR /app
+RUN apk add --no-cache git docker-cli ca-certificates
 COPY --from=builder /app/server .
 EXPOSE 4000
 CMD ["./server"]

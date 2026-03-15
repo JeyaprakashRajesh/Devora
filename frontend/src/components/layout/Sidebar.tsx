@@ -2,8 +2,8 @@ import {
   FolderGit2,
   LayoutDashboard,
   LogOut,
-  Rocket,
-  Shield,
+  Server,
+  ShieldCheck,
   Users2,
   UsersRound,
 } from 'lucide-react'
@@ -17,9 +17,8 @@ import Badge from '../ui/Badge'
 
 type NavItem = {
   label: string
-  path?: string
+  path: string
   icon: ComponentType<{ className?: string }>
-  disabled?: boolean
 }
 
 type NavGroup = {
@@ -36,17 +35,18 @@ const navGroups: NavGroup[] = [
     title: 'ACCESS',
     items: [
       { label: 'Users', path: '/admin/users', icon: Users2 },
-      { label: 'Roles', path: '/admin/roles', icon: Shield },
       { label: 'Groups', path: '/admin/groups', icon: UsersRound },
+      { label: 'Roles', path: '/admin/roles', icon: ShieldCheck },
+      { label: 'Permissions', path: '/admin/permissions', icon: ShieldCheck },
     ],
   },
   {
     title: 'PROJECTS',
-    items: [{ label: 'Projects', icon: FolderGit2, disabled: true }],
+    items: [{ label: 'Projects', path: '/projects', icon: FolderGit2 }],
   },
   {
     title: 'DEPLOY',
-    items: [{ label: 'Deployments', icon: Rocket, disabled: true }],
+    items: [{ label: 'Containers', path: '/deploy/containers', icon: Server }],
   },
 ]
 
@@ -85,34 +85,23 @@ export default function Sidebar() {
             <div className="flex flex-col gap-1">
               {group.items.map((item) => {
                 const Icon = item.icon
-                const isDisabled = Boolean(item.disabled || !item.path)
 
                 return (
                   <div key={item.label}>
-                    {isDisabled ? (
-                      <div className="h-[36px] flex items-center gap-2.5 px-3 rounded text-sm text-text-muted opacity-40 cursor-not-allowed">
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span>{item.label}</span>
-                        <span className="ml-auto text-[10px] text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded">
-                          Soon
-                        </span>
-                      </div>
-                    ) : (
-                      <NavLink
-                        to={item.path as string}
-                        className={({ isActive }) =>
-                          [
-                            'h-[36px] flex items-center gap-2.5 px-3 rounded text-sm transition-colors',
-                            isActive
-                              ? 'bg-bg-subtle text-text-primary -ml-[1px] border-l-2 border-accent-amber'
-                              : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary',
-                          ].join(' ')
-                        }
-                      >
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    )}
+                    <NavLink
+                      to={item.path}
+                      className={({ isActive }) =>
+                        [
+                          'h-[36px] flex items-center gap-2.5 px-3 rounded text-sm transition-colors',
+                          isActive
+                            ? 'bg-bg-subtle text-text-primary -ml-[1px] border-l-2 border-accent-amber'
+                            : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary',
+                        ].join(' ')
+                      }
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
                   </div>
                 )
               })}

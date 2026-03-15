@@ -19,10 +19,12 @@ type GroupUser = {
   status: string
 }
 
-type GroupRole = {
+type GroupPermission = {
   id: string
   name: string
-  is_system: boolean
+  project_id?: string
+  project_name?: string
+  access_level: 'read' | 'write' | 'full'
 }
 
 type GroupDetail = {
@@ -30,7 +32,7 @@ type GroupDetail = {
   name: string
   description?: string
   members: GroupUser[]
-  roles: GroupRole[]
+  permissions: GroupPermission[]
   member_count: number
 }
 
@@ -41,14 +43,27 @@ type UserItem = {
   display_name?: string
 }
 
-type RoleItem = {
+type PermissionItem = {
   id: string
   name: string
+  project_id?: string
+  project_name?: string
+  access_level: 'read' | 'write' | 'full'
+}
+
+type PermissionListResponse = {
+  all: PermissionItem[]
 }
 
 function unwrapData<T>(payload: unknown): T {
   const wrapped = payload as { data?: T }
   return (wrapped?.data ?? payload) as T
+}
+
+function AccessBadge({ level }: { level: 'read' | 'write' | 'full' }) {
+  if (level === 'read') return <Badge variant="info">Read</Badge>
+  if (level === 'write') return <Badge variant="warning">Write</Badge>
+  return <Badge variant="error">Full</Badge>
 }
 
 export default function GroupDetailPage() {
@@ -58,7 +73,7 @@ export default function GroupDetailPage() {
   const can = useAuthStore((s) => s.can)
 
   const [userSearch, setUserSearch] = useState('')
-  const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [selectedPermissionId, setSelectedPermissionId] = useState('')
 
   if (!can('group', 'read')) {
     return <Navigate to="/dashboard" replace />
@@ -82,13 +97,13 @@ export default function GroupDetailPage() {
     enabled: can('group', 'manage'),
   })
 
-  const rolesQuery = useQuery({
-    queryKey: ['roles-for-group', id],
+  const permissionsQuery = useQuery({
+    queryKey: ['permissions-for-group', id],
     queryFn: async () => {
-      const res = await api.get('/roles')
-      return unwrapData<RoleItem[]>(res.data)
+      const res = await api.get('/permissions/project')
+      return unwrapData<PermissionListResponse>(res.data)
     },
-    enabled: can('role', 'manage'),
+    enabled: can('org', 'manage'),
   })
 
   const addMemberMutation = useMutation({
@@ -109,19 +124,19 @@ export default function GroupDetailPage() {
     },
   })
 
-  const assignRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      await api.post(`/groups/${id}/roles`, { role_id: roleId })
+  const assignPermissionMutation = useMutation({
+    mutationFn: async (permissionId: string) => {
+      await api.post(`/groups/${id}/permissions`, { permission_id: permissionId })
     },
     onSuccess: () => {
-      setSelectedRoleId('')
+      setSelectedPermissionId('')
       queryClient.invalidateQueries({ queryKey: ['group', id] })
     },
   })
 
-  const removeRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      await api.delete(`/groups/${id}/roles/${roleId}`)
+  const removePermissionMutation = useMutation({
+    mutationFn: async (permissionId: string) => {
+      await api.delete(`/groups/${id}/permissions/${permissionId}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', id] })
@@ -129,14 +144,8 @@ export default function GroupDetailPage() {
   })
 
   const group = groupQuery.data
-  const existingMemberIds = useMemo(
-    () => new Set((group?.members ?? []).map((m) => m.id)),
-    [group?.members]
-  )
-  const existingRoleIds = useMemo(
-    () => new Set((group?.roles ?? []).map((r) => r.id)),
-    [group?.roles]
-  )
+  const existingMemberIds = useMemo(() => new Set((group?.members ?? []).map((m) => m.id)), [group?.members])
+  const existingPermissionIds = useMemo(() => new Set((group?.permissions ?? []).map((p) => p.id)), [group?.permissions])
 
   const memberCandidates = useMemo(() => {
     const q = userSearch.trim().toLowerCase()
@@ -144,19 +153,25 @@ export default function GroupDetailPage() {
       .filter((u) => !existingMemberIds.has(u.id))
       .filter((u) => {
         if (!q) return true
-        return (
-          u.email.toLowerCase().includes(q) ||
-          u.username.toLowerCase().includes(q) ||
-          (u.display_name ?? '').toLowerCase().includes(q)
-        )
+        return u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || (u.display_name ?? '').toLowerCase().includes(q)
       })
       .slice(0, 8)
   }, [usersQuery.data, existingMemberIds, userSearch])
 
-  const assignableRoles = useMemo(
-    () => (rolesQuery.data ?? []).filter((r) => !existingRoleIds.has(r.id)),
-    [rolesQuery.data, existingRoleIds]
+  const assignablePermissions = useMemo(
+    () => (permissionsQuery.data?.all ?? []).filter((p) => !existingPermissionIds.has(p.id)),
+    [permissionsQuery.data, existingPermissionIds]
   )
+
+  const permissionsByProject = useMemo(() => {
+    const map = new Map<string, PermissionItem[]>()
+    assignablePermissions.forEach((permission) => {
+      const key = permission.project_name ?? 'Org-Wide'
+      const curr = map.get(key) ?? []
+      map.set(key, [...curr, permission])
+    })
+    return map
+  }, [assignablePermissions])
 
   if (groupQuery.isLoading) {
     return <div className="py-16 flex justify-center"><Spinner size="lg" /></div>
@@ -230,11 +245,7 @@ export default function GroupDetailPage() {
           {can('group', 'manage') ? (
             <div className="border-t border-border p-4">
               <p className="text-xs text-text-muted mb-2">Add Member</p>
-              <Input
-                placeholder="Search users..."
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-              />
+              <Input placeholder="Search users..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
               <div className="mt-2 border border-border rounded bg-bg-elevated">
                 {memberCandidates.length === 0 ? (
                   <p className="text-xs text-text-muted px-3 py-2">No matching users</p>
@@ -256,29 +267,29 @@ export default function GroupDetailPage() {
           ) : null}
         </Card>
 
-        <Card header="Assigned Roles" padding="none">
+        <Card header="Permissions" padding="none">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Role name</th>
-                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">System?</th>
-                <th className="text-right text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Actions</th>
+                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Permission</th>
+                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Access</th>
+                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Project</th>
+                <th className="text-right text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Remove</th>
               </tr>
             </thead>
             <tbody>
-              {group.roles.map((role) => (
-                <tr key={role.id} className="border-b border-border last:border-0 hover:bg-bg-subtle transition-colors">
-                  <td className="px-4 py-3 text-sm text-text-primary">{role.name}</td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">
-                    {role.is_system ? <Badge variant="default">System</Badge> : 'No'}
-                  </td>
+              {group.permissions.map((permission) => (
+                <tr key={permission.id} className="border-b border-border last:border-0 hover:bg-bg-subtle transition-colors">
+                  <td className="px-4 py-3 text-sm text-text-primary">{permission.name}</td>
+                  <td className="px-4 py-3 text-sm"><AccessBadge level={permission.access_level} /></td>
+                  <td className="px-4 py-3 text-xs text-text-muted">{permission.project_name ?? 'Org-Wide'}</td>
                   <td className="px-4 py-3 text-right">
-                    {can('role', 'manage') ? (
+                    {can('org', 'manage') ? (
                       <Button
                         size="sm"
                         variant="ghost"
-                        loading={removeRoleMutation.isPending}
-                        onClick={() => removeRoleMutation.mutate(role.id)}
+                        loading={removePermissionMutation.isPending}
+                        onClick={() => removePermissionMutation.mutate(permission.id)}
                       >
                         Remove
                       </Button>
@@ -289,34 +300,44 @@ export default function GroupDetailPage() {
             </tbody>
           </table>
 
-          {group.roles.length === 0 ? (
+          {group.permissions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-sm font-medium text-text-secondary">No roles assigned</p>
+              <p className="text-sm font-medium text-text-secondary">No permissions assigned</p>
             </div>
           ) : null}
 
-          {can('role', 'manage') ? (
-            <div className="border-t border-border p-4 flex flex-col sm:flex-row gap-2">
+          {can('org', 'manage') ? (
+            <div className="border-t border-border p-4 space-y-3">
+              <p className="text-xs text-text-muted">Assign Permission</p>
               <select
-                value={selectedRoleId}
-                onChange={(e) => setSelectedRoleId(e.target.value)}
+                value={selectedPermissionId}
+                onChange={(e) => setSelectedPermissionId(e.target.value)}
                 className="bg-bg-subtle border border-border rounded px-3 py-2 text-text-primary text-sm w-full"
               >
-                <option value="">Select role</option>
-                {assignableRoles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
+                <option value="">Select permission</option>
+                {Array.from(permissionsByProject.entries()).map(([projectName, items]) => (
+                  <optgroup key={projectName} label={projectName}>
+                    {items.map((permission) => (
+                      <option key={permission.id} value={permission.id}>
+                        {permission.name} ({permission.access_level})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
+
               <Button
                 variant="primary"
-                disabled={!selectedRoleId}
-                loading={assignRoleMutation.isPending}
-                onClick={() => assignRoleMutation.mutate(selectedRoleId)}
+                disabled={!selectedPermissionId}
+                loading={assignPermissionMutation.isPending}
+                onClick={() => assignPermissionMutation.mutate(selectedPermissionId)}
               >
                 Assign
               </Button>
+
+              <p className="text-xs text-text-muted">
+                Assigning a permission here will automatically remove it from any group members who have it individually.
+              </p>
             </div>
           ) : null}
         </Card>

@@ -1,0 +1,30 @@
+export declare const Subjects: {
+    readonly AUTH_USER_CREATED: "auth.user.created";
+    readonly AUTH_USER_UPDATED: "auth.user.updated";
+    readonly AUTH_ROLE_ASSIGNED: "auth.role.assigned";
+    readonly AUTH_USER_INVITED: "auth.user.invited";
+    readonly PROJECT_CREATED: "project.created";
+    readonly PROJECT_ISSUE_CREATED: "project.issue.created";
+    readonly PROJECT_ISSUE_UPDATED: "project.issue.updated";
+    readonly PROJECT_ISSUE_CLOSED: "project.issue.closed";
+    readonly PROJECT_PR_OPENED: "project.pr.opened";
+    readonly PROJECT_PR_MERGED: "project.pr.merged";
+    readonly PROJECT_PR_CLOSED: "project.pr.closed";
+    readonly PROJECT_PIPELINE_STARTED: "project.pipeline.started";
+    readonly PROJECT_PIPELINE_PASSED: "project.pipeline.passed";
+    readonly PROJECT_PIPELINE_FAILED: "project.pipeline.failed";
+    readonly DEPLOY_STARTED: "deploy.started";
+    readonly DEPLOY_STEP_COMPLETED: "deploy.step.completed";
+    readonly DEPLOY_SUCCEEDED: "deploy.succeeded";
+    readonly DEPLOY_FAILED: "deploy.failed";
+    readonly DEPLOY_APPROVAL_REQUIRED: "deploy.approval.required";
+    readonly DEPLOY_ROLLED_BACK: "deploy.rolled_back";
+    readonly SANDBOX_CREATED: "sandbox.created";
+    readonly SANDBOX_STARTED: "sandbox.started";
+    readonly SANDBOX_STOPPED: "sandbox.stopped";
+    readonly SANDBOX_RESOURCE_SPIKE: "sandbox.resource.spike";
+    readonly CHAT_MESSAGE_CREATED: "chat.message.created";
+    readonly CHAT_MENTION_DETECTED: "chat.mention.detected";
+};
+export type Subject = typeof Subjects[keyof typeof Subjects];
+//# sourceMappingURL=subjects.d.ts.map

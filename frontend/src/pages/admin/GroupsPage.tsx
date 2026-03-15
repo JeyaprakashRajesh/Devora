@@ -18,7 +18,7 @@ type GroupListItem = {
 }
 
 type GroupDetail = {
-  roles: Array<{ id: string; name: string }>
+  permissions: Array<{ id: string; name: string }>
 }
 
 function unwrapData<T>(payload: unknown): T {
@@ -57,8 +57,8 @@ export default function GroupsPage() {
     },
   })
 
-  const groupRolesQuery = useQuery({
-    queryKey: ['groups-role-overview', groupsQuery.data?.map((g) => g.id).join(',')],
+  const groupPermissionsQuery = useQuery({
+    queryKey: ['groups-permission-overview', groupsQuery.data?.map((g) => g.id).join(',')],
     queryFn: async () => {
       const groups = groupsQuery.data ?? []
       const results = await Promise.all(
@@ -69,7 +69,7 @@ export default function GroupsPage() {
       )
       const map = new Map<string, string[]>()
       results.forEach(({ groupId, detail }) => {
-        map.set(groupId, detail.roles.map((r) => r.name))
+        map.set(groupId, detail.permissions.map((p) => p.name))
       })
       return map
     },
@@ -142,16 +142,16 @@ export default function GroupsPage() {
               <tr className="border-b border-border">
                 <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Group</th>
                 <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Members</th>
-                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Roles</th>
+                <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Permissions</th>
                 <th className="text-left text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Created</th>
                 <th className="text-right text-[11px] uppercase tracking-wide text-text-muted font-medium px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {groups.map((group) => {
-                const roleNames = groupRolesQuery.data?.get(group.id) ?? []
-                const preview = roleNames.slice(0, 2)
-                const more = roleNames.length - preview.length
+                const permissionNames = groupPermissionsQuery.data?.get(group.id) ?? []
+                const preview = permissionNames.slice(0, 2)
+                const more = permissionNames.length - preview.length
 
                 return (
                   <tr key={group.id} className="border-b border-border last:border-0 hover:bg-bg-subtle transition-colors">
@@ -163,7 +163,7 @@ export default function GroupsPage() {
                     <td className="px-4 py-3 text-sm text-text-muted">
                       {preview.join(', ')}
                       {more > 0 ? ` +${more} more` : ''}
-                      {roleNames.length === 0 ? 'No roles' : ''}
+                      {permissionNames.length === 0 ? 'No permissions' : ''}
                     </td>
                     <td className="px-4 py-3 text-sm text-text-muted">{timeAgo(group.created_at)}</td>
                     <td className="px-4 py-3 text-right">

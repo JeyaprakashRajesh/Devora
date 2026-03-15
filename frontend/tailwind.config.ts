@@ -36,6 +36,15 @@ export default {
         lg: '10px',
         full: '9999px',
       },
+      keyframes: {
+        loading: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(200%)' },
+        },
+      },
+      animation: {
+        loading: 'loading 1.5s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

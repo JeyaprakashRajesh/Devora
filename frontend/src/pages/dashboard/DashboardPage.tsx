@@ -1,4 +1,5 @@
-import { Activity, Box, CircleDot, Rocket } from 'lucide-react'
+import { Activity, Box, CircleDot, PartyPopper, Rocket, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import Card from '../../components/ui/Card'
 import { useAuthStore } from '../../store/auth'
 
@@ -35,6 +36,23 @@ const metrics = [
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
+  const org = useAuthStore((s) => s.org)
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  useEffect(() => {
+    if (!org?.created_at) {
+      setShowWelcome(false)
+      return
+    }
+
+    const createdAt = new Date(org.created_at).getTime()
+    if (Number.isNaN(createdAt)) {
+      setShowWelcome(false)
+      return
+    }
+
+    setShowWelcome(Date.now()- createdAt < 60_000)
+  }, [org?.created_at])
 
   return (
     <div>
@@ -42,6 +60,30 @@ export default function DashboardPage() {
       <p className="text-sm text-text-muted mt-0.5">
         Welcome back, {user?.display_name ?? user?.username}
       </p>
+
+      {showWelcome && user && org ? (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-accent-amber/10 border border-accent-amber/25 mb-6 mt-6">
+          <div className="w-10 h-10 rounded-full bg-accent-amber/20 flex items-center justify-center shrink-0">
+            <PartyPopper className="w-5 h-5 text-accent-amber" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text-primary">
+              Welcome to Devora, {user.username}! 🎉
+            </p>
+            <p className="text-xs text-text-muted mt-0.5">
+              Your organization &quot;{org.name}&quot; is ready. Start by creating your first project.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowWelcome(false)}
+            className="ml-auto text-text-muted hover:text-text-primary"
+            aria-label="Dismiss welcome banner"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         {metrics.map(({ label, value, Icon, accentClass, subtleBgClass }) => (

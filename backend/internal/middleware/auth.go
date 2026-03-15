@@ -9,14 +9,21 @@ import (
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tokenStr := ""
 		header := c.GetHeader("Authorization")
-		if header == "" || !strings.HasPrefix(header, "Bearer ") {
+		if strings.HasPrefix(header, "Bearer ") {
+			tokenStr = strings.TrimPrefix(header, "Bearer ")
+		} else {
+			// EventSource cannot set Authorization headers.
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
 			utils.Unauthorized(c)
 			c.Abort()
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(header, "Bearer ")
 		claims, err := utils.VerifyJWT(tokenStr)
 		if err != nil {
 			utils.Unauthorized(c)
